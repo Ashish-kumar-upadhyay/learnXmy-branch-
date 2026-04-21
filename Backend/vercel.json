@@ -1,27 +1,14 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/index.ts",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "api/[...path].ts",
-      "use": "@vercel/node"
-    }
-  ],
   "functions": {
-    "api/index.ts": {
-      "maxDuration": 10
-    },
-    "api/[...path].ts": {
+    "api/**/*.ts": {
       "maxDuration": 10
     }
   },
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/api/[...path]"
+      "src": "/(.*)",
+      "dest": "/api/[...path].ts"
     }
   ],
   "env": {
