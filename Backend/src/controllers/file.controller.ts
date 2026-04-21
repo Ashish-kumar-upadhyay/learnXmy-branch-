@@ -1,0 +1,77 @@
+import fs from 'fs/promises';
+import path from 'path';
+import { Response } from 'express';
+import { AuthRequest } from '../types/auth.types';
+import { env } from '../config/environment';
+import * as fileService from '../services/file.service';
+import { FileMeta } from '../models/FileMeta.model';
+import { User } from '../models/User.model';
+import { ok, fail } from '../utils/response';
+
+export async function uploadFile(req: AuthRequest, res: Response) {
+  if (!req.authUser) return fail(res, 401, 'Unauthorized');
+  const file = req.file;
+  if (!file) return fail(res, 400, 'No file');
+  const kind = (req.body.kind as 'avatar' | 'selfie' | 'other') || 'other';
+  const uploadRoot = path.resolve(env.uploadDir);
+  const fileAbs = path.resolve(file.path);
+  let rel = path.relative(uploadRoot, fileAbs).replace(/\\/g, '/');
+  if (!rel || rel.startsWith('..')) {
+    // Safety fallback if relative path cannot be derived cleanly.
+    rel = path.join(req.authUser.id, kind, path.basename(file.path)).replace(/\\/g, '/');
+  }
+  const meta = await fileService.saveFileRecord(req.authUser.id, kind, rel, file.mimetype, file.size, file.originalname);
+  if (kind === 'avatar') {
+    await User.findByIdAndUpdate(req.authUser.id, { avatar_url: `/api/files/${meta._id}` } as Record<string, unknown>);
+  }
+  return ok(res, { id: String(meta._id), url: `/api/files/${meta._id}` });
+}
+
+export async function getFile(req: AuthRequest, res: Response) {
+  const meta = await fileService.getMetaById(req.params.id);
+  if (!meta) return fail(res, 404, 'Not found');
+  const candidates = [
+    path.resolve(env.uploadDir, meta.path),
+    path.resolve(meta.path),
+  ];
+  const abs = candidates[0];
+  let chosen = '';
+  for (const c of candidates) {
+    try {
+      await fs.access(c);
+      chosen = c;
+      break;
+    } catch {
+      // try next candidate
+    }
+  }
+  if (!chosen) return fail(res, 404, 'File not found on disk');
+  res.setHeader('Content-Type', meta.mime);
+  return res.sendFile(chosen || path.resolve(abs));
+}
+
+export async function deleteFile(req: AuthRequest, res: Response) {
+  if (!req.authUser) return fail(res, 401, 'Unauthorized');
+  const meta = await fileService.deleteMeta(req.params.id, req.authUser.id);
+  if (!meta) return fail(res, 404, 'Not found');
+  return ok(res, null, 'Deleted');
+}
+
+export async function profileFiles(req: AuthRequest, res: Response) {
+  const items = await FileMeta.find({ owner_id: req.params.userId }).lean();
+  return ok(res, items);
+}
+
+export async function uploadSelfie(req: AuthRequest, res: Response) {
+  const file = req.file;
+  if (!file) return fail(res, 400, 'No file');
+  const ownerId = req.authUser?.id || (req.body.user_id as string);
+  if (!ownerId) return fail(res, 400, 'user required');
+  const rel = path.relative(env.uploadDir, file.path).replace(/\\/g, '/');
+  const meta = await fileService.saveFileRecord(ownerId, 'selfie', rel, file.mimetype, file.size, file.originalname);
+  return ok(res, { id: String(meta._id), url: `/api/files/selfie/${meta._id}` });
+}
+
+export async function getSelfie(req: AuthRequest, res: Response) {
+  return getFile(req, res);
+}
