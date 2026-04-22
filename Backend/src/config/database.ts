@@ -8,8 +8,31 @@ export async function connectDatabase(): Promise<void> {
   mongoose.set('strictQuery', true);
   mongoose.set('bufferCommands', false);
   if (mongoose.connection.readyState === 1) return;
-  await mongoose.connect(env.mongoUri);
-  logger.info('MongoDB connected');
+  const candidates = Array.from(
+    new Set(
+      [env.mongoUri, process.env.MONGODB_URI, process.env.MONGO_MONGODB_URI]
+        .map((v) => String(v ?? '').trim())
+        .filter(Boolean)
+    )
+  );
+
+  let lastError: unknown = null;
+  for (const uri of candidates) {
+    try {
+      await mongoose.connect(uri);
+      logger.info('MongoDB connected');
+      lastError = null;
+      break;
+    } catch (e) {
+      lastError = e;
+      logger.error(`MongoDB connect failed for one URI candidate: ${String(e)}`);
+    }
+  }
+
+  if (lastError) {
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
   try {
     await User.syncIndexes();
     await User.collection.updateMany(
