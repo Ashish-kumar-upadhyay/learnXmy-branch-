@@ -10,7 +10,7 @@ const num = (v: string | undefined, d: number) => {
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: num(process.env.PORT, 5000),
-  mongoUri: process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/learnx',
+  mongoUri: process.env.MONGO_MONGODB_URI ?? process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/learnx',
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-access-secret-change-in-prod-32chars',
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret-change-in-prod-32',
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
