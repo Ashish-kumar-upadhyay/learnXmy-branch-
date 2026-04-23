@@ -42,10 +42,11 @@ async function main() {
   const port = Number(process.env.PORT) || env.port;
   console.log(`Starting server on port ${port} (PORT env: ${process.env.PORT})`);
   logger.info(`Starting server on port ${port} (PORT env: ${process.env.PORT})`);
-  // Avoid localhost (::1) mismatch on systems where localhost resolves to IPv6 first.
-  server.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-    logger.info(`LearnX API listening on port ${port}`);
+  // Bind explicitly to IPv4 any-address so cloud platforms can detect the open port.
+  const host = '0.0.0.0';
+  server.listen(port, host, () => {
+    console.log(`Server running on ${host}:${port}`);
+    logger.info(`LearnX API listening on ${host}:${port}`);
     logger.info(`Server successfully started and listening!`);
   });
   // Keep API reachable while DB reconnect attempts continue.
