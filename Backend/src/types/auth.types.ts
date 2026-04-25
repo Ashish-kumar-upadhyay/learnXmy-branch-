@@ -10,4 +10,4 @@ export type AuthUser = {
 };
 
 // Important: do NOT use `req.user` because passport also uses `req.user`.
-export type AuthRequest = Request & { authUser?: AuthUser };
+export type AuthRequest = Request & { authUser?: AuthUser; file?: Express.Multer.File };
