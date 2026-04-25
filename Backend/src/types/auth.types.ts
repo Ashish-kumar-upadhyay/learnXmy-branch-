@@ -9,5 +9,17 @@ export type AuthUser = {
   tokenVersion: number;
 };
 
+// Custom file type to match multer's file structure
+export type UploadedFile = {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination: string;
+  filename: string;
+  path: string;
+};
+
 // Important: do NOT use `req.user` because passport also uses `req.user`.
-export type AuthRequest = Request & { authUser?: AuthUser; file?: Express.Multer.File };
+export type AuthRequest = Request & { authUser?: AuthUser; file?: UploadedFile };
