@@ -41,7 +41,7 @@ export default function ProgressRing({ value, size = 120, strokeWidth = 8, color
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold text-foreground">{value}%</span>
+          <span className="text-2xl font-black bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">{value}%</span>
         </div>
       </div>
       {label && <span className="text-sm font-medium text-foreground">{label}</span>}

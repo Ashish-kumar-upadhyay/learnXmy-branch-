@@ -48,7 +48,7 @@ export default function Profile() {
   
   // Also update when profile changes after refresh
   useEffect(() => {
-    if (profile && loaded) {
+    if (profile) {
       const avatar = profile.avatar_url;
       console.log("Profile update useEffect - avatar from backend:", avatar);
       if (avatar && typeof avatar === "string") {
@@ -67,7 +67,7 @@ export default function Profile() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
-    if (file.size > 2 * 1024 * 1024) { toast.error("Image must be under 2MB"); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10MB"); return; }
 
     const accessToken = getAccessToken();
     if (!accessToken) return toast.error("Please login again");
@@ -98,8 +98,9 @@ export default function Profile() {
     const absUrl = newUrl ? (newUrl.startsWith("http") ? newUrl : `${API_BASE}${newUrl}`) : null;
     console.log("Formatted avatar URL:", absUrl);
     
-    // Update local state immediately
-    setAvatarUrl(absUrl);
+    // Update local state immediately with cache-busting
+    const cacheBustingUrl = absUrl ? `${absUrl}?t=${Date.now()}` : null;
+    setAvatarUrl(cacheBustingUrl);
     
     // Also update the profile in backend to persist the change
     const profileUpdateRes = await api("/api/auth/profile", {
