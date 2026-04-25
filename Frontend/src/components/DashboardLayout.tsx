@@ -526,7 +526,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   className="flex items-center gap-3 pl-1.5 pr-3 py-1.5 rounded-2xl hover:bg-muted/30 transition-all duration-200"
                 >
                   {profile?.avatar_url ? (
-                    <img src={profile.avatar_url} alt="Avatar" className="w-9 h-9 rounded-xl object-cover shadow-md" />
+                    <img src={`${profile.avatar_url}?t=${Date.now()}`} alt="Avatar" className="w-9 h-9 rounded-xl object-cover shadow-md" />
                   ) : (
                     <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-violet-500 flex items-center justify-center text-sm font-bold text-white shadow-md shadow-violet-500/15">
                       {(profile?.full_name || "U").charAt(0).toUpperCase()}
@@ -650,7 +650,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 aria-label="Profile menu"
               >
                 {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="Avatar" className="w-full h-full rounded-lg object-cover" />
+                  <img src={`${profile.avatar_url}?t=${Date.now()}`} alt="Avatar" className="w-full h-full rounded-lg object-cover" />
                 ) : (
                   <div className="w-full h-full rounded-lg bg-gradient-to-br from-sky-500 to-violet-500 flex items-center justify-center text-[10px] md:text-xs font-bold text-white">
                     {(profile?.full_name || "U").charAt(0).toUpperCase()}
