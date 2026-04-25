@@ -68,8 +68,16 @@ export default function Index() {
       const doneCount = assignments.filter((a: any) => submittedIds.has(a.id)).length;
 
       // Fetch attendance data
-      const attendanceRes = await api<any[]>(`/api/attendance/my-attendance`, { method: "GET", accessToken });
-      const attendanceData = attendanceRes.data || [];
+      let attendanceData: any[] = [];
+      try {
+        const attendanceRes = await api<any[]>(`/api/attendance/my-attendance`, { method: "GET", accessToken });
+        if (attendanceRes.status === 200) {
+          attendanceData = attendanceRes.data || [];
+        }
+      } catch (error) {
+        console.warn("Attendance endpoint not available, using empty data");
+        attendanceData = [];
+      }
       const attendanceMap: Record<string, boolean> = {};
       attendanceData.forEach((record: any) => {
         attendanceMap[record.class_id] = record.present;

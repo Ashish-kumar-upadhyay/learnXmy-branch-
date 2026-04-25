@@ -66,3 +66,13 @@ export async function tutorStats(req: AuthRequest, res: Response) {
   const stats = await aiService.aiStats(req.authUser.id);
   return ok(res, stats);
 }
+
+export async function generateExamMcqs(req: AuthRequest, res: Response) {
+  if (!req.authUser) return fail(res, 401, 'Unauthorized');
+  const { topic, count } = req.body as { topic?: string; count?: number };
+  const cleanTopic = String(topic ?? '').trim();
+  if (!cleanTopic) return fail(res, 400, 'Topic is required');
+  const generated = await aiService.generateExamMcqs(cleanTopic, Number(count ?? 10));
+  if (!generated.length) return fail(res, 500, 'Unable to generate MCQs right now');
+  return ok(res, generated);
+}

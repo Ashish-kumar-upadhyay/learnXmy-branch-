@@ -56,9 +56,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (profileRes.status !== 200 || !profileRes.data) return false;
 
     const p = profileRes.data;
-    if (p?.avatar_url && typeof p.avatar_url === "string" && p.avatar_url.startsWith("/")) {
+    if (p?.avatar_url && typeof p.avatar_url === "string") {
       // Backend returns relative URLs like `/api/files/<id>`
-      p.avatar_url = `${API_BASE}${p.avatar_url}`;
+      if (p.avatar_url.startsWith("/")) {
+        p.avatar_url = `${API_BASE}${p.avatar_url}`;
+      }
+      console.log("AuthContext - Processed avatar URL:", p.avatar_url);
+    } else {
+      console.log("AuthContext - No avatar URL found in profile");
     }
     const nextRoles = (p.roles || []) as AppRole[];
     setProfile(p);
@@ -67,9 +72,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!hasRedirected.current && nextRoles.length > 0) {
       hasRedirected.current = true;
-      if (nextRoles.includes("admin")) navigate("/admin");
-      else if (nextRoles.includes("teacher")) navigate("/teacher");
-      else navigate("/");
+      // Check if user is already on a valid page for their role
+      const currentPath = location.pathname;
+      const isValidForRole = 
+        (nextRoles.includes("admin") && currentPath.startsWith("/admin")) ||
+        (nextRoles.includes("teacher") && currentPath.startsWith("/teacher")) ||
+        (!nextRoles.includes("admin") && !nextRoles.includes("teacher") && (currentPath === "/" || currentPath.startsWith("/")));
+      
+      // Only redirect if not already on a valid page for their role
+      if (!isValidForRole) {
+        if (nextRoles.includes("admin")) navigate("/admin");
+        else if (nextRoles.includes("teacher")) navigate("/teacher");
+        else navigate("/");
+      }
     }
     return true;
   }

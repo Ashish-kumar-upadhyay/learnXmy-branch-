@@ -13,6 +13,8 @@ r.delete('/structure/:id', requireRoles('admin'), ctrl.deleteFeeStructure);
 
 r.get('/payments/student/:id', ctrl.studentPayments);
 r.get('/payments', ctrl.listPayments);
+r.post('/payments/create-order', requireRoles('student', 'admin', 'teacher'), ctrl.createRazorpayFeeOrder);
+r.post('/payments/verify', requireRoles('student', 'admin', 'teacher'), ctrl.verifyRazorpayFeePayment);
 r.post('/payments', requireRoles('admin', 'teacher'), ctrl.createPayment);
 r.get('/receipts', requireRoles('admin', 'teacher'), ctrl.receipts);
 

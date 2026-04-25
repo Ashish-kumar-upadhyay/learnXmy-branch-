@@ -105,9 +105,23 @@ export default function StudentAttendance() {
   async function markAttendanceForDay() {
     if (!user || !selectedDate) return;
     if (!isToday(selectedDate)) {
-      toast.error("Sirf aaj ki attendance mark ho sakti hai");
+      toast.error("Only today's attendance can be marked");
       return;
     }
+
+    // Check if attendance already marked for today
+    const todayAttendance = records.find(r => {
+      const recordDate = new Date(r.marked_at);
+      const selectedDateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+      const recordDateOnly = new Date(recordDate.getFullYear(), recordDate.getMonth(), recordDate.getDate());
+      return selectedDateOnly.getTime() === recordDateOnly.getTime();
+    });
+
+    if (todayAttendance) {
+      toast.error("Today's attendance has already been marked! You can only mark attendance once per day.");
+      return;
+    }
+
     const accessToken = getAccessToken();
     if (!accessToken) {
       toast.error("Login required");
@@ -134,6 +148,14 @@ export default function StudentAttendance() {
     setMarking(false);
   }
 
+  const hasMarkedToday = records.some(r => {
+    const recordDate = new Date(r.marked_at);
+    const today = new Date();
+    const recordDateOnly = new Date(recordDate.getFullYear(), recordDate.getMonth(), recordDate.getDate());
+    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return recordDateOnly.getTime() === todayOnly.getTime();
+  });
+
   const total = records.length;
   const presentCount = records.filter(r => r.status === "present" || r.status === "late" || r.status === "half_day").length;
   const attendanceRate = total > 0 ? Math.round((presentCount / total) * 100) : 0;
@@ -158,13 +180,13 @@ export default function StudentAttendance() {
         <p className="text-sm text-muted-foreground mt-1">Your attendance records across all classes</p>
       </div>
 
-      <Tabs defaultValue="checkin" className="space-y-4">
+      <Tabs defaultValue="calendar" className="space-y-4">
         <TabsList className="bg-muted/50 border border-border/50">
-          <TabsTrigger value="checkin" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
-            <Navigation className="w-4 h-4 mr-2" />Check In
-          </TabsTrigger>
           <TabsTrigger value="calendar" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
             <CalendarDays className="w-4 h-4 mr-2" />Calendar
+          </TabsTrigger>
+          <TabsTrigger value="checkin" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+            <Navigation className="w-4 h-4 mr-2" />Check In
           </TabsTrigger>
           <TabsTrigger value="history" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
             <CalendarDays className="w-4 h-4 mr-2" />History
@@ -230,10 +252,10 @@ export default function StudentAttendance() {
 
               <button
                 onClick={markAttendanceForDay}
-                disabled={!selectedDate || !isToday(selectedDate) || marking}
+                disabled={!selectedDate || !isToday(selectedDate) || marking || hasMarkedToday}
                 className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
               >
-                {marking ? "Marking..." : isToday(selectedDate) ? "Mark Attendance" : "Sirf aaj mark kar sakte ho"}
+                {marking ? "Marking..." : hasMarkedToday ? "Today's Attendance Already Marked ✓" : isToday(selectedDate) ? "Mark Attendance" : "Only today can be marked"}
               </button>
             </div>
           </div>
@@ -289,9 +311,11 @@ export default function StudentAttendance() {
                   <Icon className={`w-5 h-5 ${statusColor[r.status]}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{r.classes?.title || "Unknown Class"}</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {format(new Date(r.marked_at), "EEEE, MMMM d, yyyy")}
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    {r.classes?.subject} · {r.classes?.scheduled_at ? format(new Date(r.classes.scheduled_at), "PPp") : "—"}
+                    Marked at: {format(new Date(r.marked_at), "h:mm a")} · Type: {r.status === "half_day" ? "Half Day" : r.status === "full" ? "Full Day" : r.status.charAt(0).toUpperCase() + r.status.slice(1)}
                   </p>
                 </div>
                 <div className="text-right">

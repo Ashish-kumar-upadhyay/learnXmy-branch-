@@ -39,4 +39,6 @@ export const env = {
   resendFrom: process.env.RESEND_FROM?.trim() || 'LearnX <onboarding@resend.dev>',
   /** Inbox that receives Contact page submissions (defaults to SMTP_FROM if set). */
   contactNotifyEmail: process.env.CONTACT_NOTIFY_EMAIL?.trim() || process.env.SMTP_FROM?.trim() || '',
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID?.trim() ?? '',
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET?.trim() ?? '',
 };

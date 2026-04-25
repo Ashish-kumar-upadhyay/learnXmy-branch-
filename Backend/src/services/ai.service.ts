@@ -230,3 +230,67 @@ export async function aiStats(userId: string) {
   ]);
   return { sessions, messageCount: msgs[0]?.total ?? 0 };
 }
+
+export type GeneratedMcq = {
+  question: string;
+  options: string[];
+  correct_answer: string;
+};
+
+function parseGeneratedMcqs(raw: string): GeneratedMcq[] {
+  const cleaned = raw.trim();
+  let payload: unknown = null;
+  try {
+    payload = JSON.parse(cleaned);
+  } catch {
+    const start = cleaned.indexOf('[');
+    const end = cleaned.lastIndexOf(']');
+    if (start >= 0 && end > start) {
+      payload = JSON.parse(cleaned.slice(start, end + 1));
+    }
+  }
+  if (!Array.isArray(payload)) return [];
+
+  const out: GeneratedMcq[] = [];
+  for (const item of payload) {
+    const q = item as { question?: unknown; options?: unknown; correct_answer?: unknown };
+    const question = String(q.question ?? '').trim();
+    const options = Array.isArray(q.options) ? q.options.map((o) => String(o ?? '').trim()).filter(Boolean) : [];
+    const correct = String(q.correct_answer ?? '').trim();
+    if (!question || options.length !== 4 || !correct || !options.includes(correct)) continue;
+    out.push({ question, options, correct_answer: correct });
+  }
+  return out;
+}
+
+export async function generateExamMcqs(topic: string, count = 10): Promise<GeneratedMcq[]> {
+  if (!topic.trim()) return [];
+  const n = Math.min(20, Math.max(1, count));
+  const prompt = `Generate ${n} multiple-choice questions for topic "${topic}".
+
+Rules:
+- Return only a JSON array.
+- Each item must have keys: question, options, correct_answer
+- options must contain exactly 4 unique short strings
+- correct_answer must exactly match one of options
+- No markdown, no explanation, no extra text.
+
+Example format:
+[
+  {
+    "question": "....",
+    "options": ["A", "B", "C", "D"],
+    "correct_answer": "A"
+  }
+]`;
+
+  try {
+    const result = await generateWithFallback([prompt]);
+    const text = result.response.text() || '[]';
+    const parsed = parseGeneratedMcqs(text);
+    return parsed.slice(0, n);
+  } catch (e) {
+    logger.warn('AI exam mcq generation failed', { error: String(e) });
+    return [];
+  }
+}

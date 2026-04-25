@@ -1,6 +1,9 @@
 import { FeePayment } from '../models/FeePayment.model';
 import { SalaryConfig } from '../models/SalaryConfig.model';
 import { Types } from 'mongoose';
+import axios from 'axios';
+import crypto from 'crypto';
+import { env } from '../config/environment';
 
 function randomReceipt() {
   return `RCPT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
@@ -21,6 +24,31 @@ export async function recordFeePayment(data: {
     receipt_no: randomReceipt(),
     status: data.status ?? 'paid',
   });
+}
+
+export async function createRazorpayOrder(data: { amount: number; receipt: string; notes?: Record<string, string> }) {
+  const auth = Buffer.from(`${env.razorpayKeyId}:${env.razorpayKeySecret}`).toString('base64');
+  const response = await axios.post(
+    'https://api.razorpay.com/v1/orders',
+    {
+      amount: Math.round(data.amount * 100),
+      currency: 'INR',
+      receipt: data.receipt,
+      notes: data.notes ?? {},
+    },
+    { headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' } }
+  );
+  return response.data as { id: string; amount: number; currency: string; receipt: string; status: string };
+}
+
+export function verifyRazorpaySignature(input: {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}) {
+  const payload = `${input.razorpay_order_id}|${input.razorpay_payment_id}`;
+  const expected = crypto.createHmac('sha256', env.razorpayKeySecret).update(payload).digest('hex');
+  return expected === input.razorpay_signature;
 }
 
 export type ReceiptRow = {

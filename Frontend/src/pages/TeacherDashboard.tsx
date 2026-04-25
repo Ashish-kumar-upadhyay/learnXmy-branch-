@@ -96,6 +96,18 @@ export default function TeacherDashboard() {
     const t = searchParams.get("tab");
     return isTeacherTabKey(t) ? t : "classes";
   }, [searchParams]);
+  
+  // Sync tab with URL on mount
+  useEffect(() => {
+    const currentTab = searchParams.get("tab");
+    if (currentTab && isTeacherTabKey(currentTab)) {
+      // Tab is already in URL, no action needed
+      console.log("Tab from URL:", currentTab);
+    } else {
+      // No valid tab in URL, set default to classes
+      setSearchParams(new URLSearchParams());
+    }
+  }, []); // Run only once on mount
   const setTeacherTab = useCallback(
     (value: string) => {
       setSearchParams(
@@ -168,7 +180,8 @@ export default function TeacherDashboard() {
     email: "",
     password: "",
     full_name: "",
-    class_name: teacherClass,
+    batch: "",
+    class_name: teacherClass
   });
 
   // Class form
@@ -332,7 +345,10 @@ export default function TeacherDashboard() {
     if (accessToken && c.data && c.data.length > 0) {
       const attendanceRows = await Promise.all(
         (c.data as any[]).map(async (cls: any) => {
-          const d = new Date(cls.scheduled_at);
+          const d = cls.scheduled_at ? new Date(cls.scheduled_at) : null;
+          if (!d || isNaN(d.getTime())) {
+            return { classId: cls.id, rows: [] };
+          }
           const dayStr = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
           const res = await api<any[]>(
             `/api/attendance/class/${cls.id}?date=${encodeURIComponent(dayStr)}`,
@@ -578,6 +594,15 @@ export default function TeacherDashboard() {
     return allStudents;
   }
 
+  function getUniqueBatches() {
+    const batches = new Set<string>();
+    allStudents.forEach(s => {
+      if (s.batch) batches.add(s.batch);
+    });
+    if (teacherClass) batches.add(teacherClass);
+    return Array.from(batches).sort();
+  }
+
   function getAttendedStudents(classId: string) {
     return attendanceData[classId] || [];
   }
@@ -717,8 +742,8 @@ export default function TeacherDashboard() {
   }
 
   async function addStudent() {
-    if (!studentForm.password || !studentForm.full_name) {
-      toast.error("Password and name are required");
+    if (!studentForm.password || !studentForm.full_name || !studentForm.batch) {
+      toast.error("Password, name, and batch are required");
       return;
     }
 
@@ -750,6 +775,7 @@ export default function TeacherDashboard() {
           name: studentForm.full_name,
           password: studentForm.password,
           assignedClass,
+          batch: studentForm.batch,
           email: contact,
         }),
       });
@@ -787,7 +813,7 @@ export default function TeacherDashboard() {
         contactEmail: contact,
       });
       setShowStudentForm(false);
-      setStudentForm({ email: "", password: "", full_name: "", class_name: teacherClass });
+      setStudentForm({ email: "", password: "", full_name: "", batch: "", class_name: teacherClass });
       fetchAll();
     } catch (err: unknown) {
       console.error("Add student error:", err);
@@ -933,7 +959,7 @@ export default function TeacherDashboard() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map((s, i) => (
-          <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="stat-card">
+          <motion.div key={s.label || `stat-${i}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="stat-card">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">{s.label}</p>
@@ -1158,12 +1184,19 @@ export default function TeacherDashboard() {
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="glass-card p-5 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><label className={labelClass}>Title</label><input className={inputClass} value={assignmentForm.title} onChange={e => setAssignmentForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Binary Trees Assignment" /></div>
-                <div><label className={labelClass}>Batch</label><input className={inputClass} value={assignmentForm.batch} onChange={e => setAssignmentForm(p => ({ ...p, batch: e.target.value }))} placeholder="e.g. CS-2026" /></div>
+                <div><label className={labelClass}>Batch</label>
+                  <select className={inputClass} value={assignmentForm.batch} onChange={e => setAssignmentForm(p => ({ ...p, batch: e.target.value }))}>
+                    <option value="">Select Batch</option>
+                    {getUniqueBatches().map(batch => (
+                      <option key={batch} value={batch}>{batch}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
-                  <label className={labelClass}>Due Date</label>
+                  <label className={labelClass}>📅 Due Date</label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <button className={cn(inputClass, "text-left")}>{format(assignmentForm.due_date, "PPP")}</button>
+                      <button className={cn(inputClass, "text-left font-medium")}>{format(assignmentForm.due_date, "PPP")}</button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar mode="single" selected={assignmentForm.due_date} onSelect={d => d && setAssignmentForm(p => ({ ...p, due_date: d }))} className="p-3 pointer-events-auto" />
@@ -1171,13 +1204,14 @@ export default function TeacherDashboard() {
                   </Popover>
                 </div>
                 <div>
-                  <label className={labelClass}>Due Time</label>
+                  <label className={labelClass}>⏰ Due Time</label>
                   <input
                     type="time"
                     className={inputClass}
                     value={assignmentForm.due_time}
                     onChange={e => setAssignmentForm(p => ({ ...p, due_time: e.target.value }))}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Students can submit for practice after this deadline</p>
                 </div>
                 <div><label className={labelClass}>Max Score</label><input type="number" className={inputClass} value={assignmentForm.max_score} onChange={e => setAssignmentForm(p => ({ ...p, max_score: parseInt(e.target.value) || 100 }))} /></div>
                 <div><label className={labelClass}>Duration (hours)</label><input type="number" step="0.5" className={inputClass} value={assignmentForm.duration_hours} onChange={e => setAssignmentForm(p => ({ ...p, duration_hours: e.target.value }))} placeholder="e.g. 2, 0.5" /></div>
@@ -1193,6 +1227,21 @@ export default function TeacherDashboard() {
                 )}
               </div>
               <div><label className={labelClass}>Description</label><textarea className={cn(inputClass, "min-h-[80px]")} value={assignmentForm.description} onChange={e => setAssignmentForm(p => ({ ...p, description: e.target.value }))} placeholder="Assignment instructions..." /></div>
+              
+              {/* Deadline Preview */}
+              <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-primary">Deadline Preview</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Students must submit before: <span className="font-mono text-foreground">{format(new Date(assignmentForm.due_date), "PPP")} at {assignmentForm.due_time || "23:59"}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  After deadline: <span className="text-violet-600 font-medium">Practice Mode Available</span>
+                </p>
+              </div>
+              
               <button onClick={createAssignment} className="px-6 py-2.5 rounded-lg text-sm font-medium text-primary-foreground" style={{ background: "var(--gradient-primary)" }}>Create & Publish</button>
             </motion.div>
           )}
@@ -1247,11 +1296,11 @@ export default function TeacherDashboard() {
                         <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
                           <Inbox className="w-4 h-4" /> Student Submissions
                         </h4>
-                        {subs.map((sub: any) => {
+                        {subs.map((sub: any, index: number) => {
                           const studentName = sub.student_name || "Unknown Student";
                           const gi = gradeInputs[sub.id] || { grade: sub.grade || "", feedback: sub.feedback || "" };
                           return (
-                            <div key={sub.id} className="p-3 rounded-lg bg-muted/30 border border-border/20 space-y-2">
+                            <div key={sub.id || `sub-${index}`} className="p-3 rounded-lg bg-muted/30 border border-border/20 space-y-2">
                               <div className="flex items-center justify-between">
                                 <div>
                                   <p className="text-sm font-medium text-foreground">{studentName}</p>
@@ -1328,6 +1377,15 @@ export default function TeacherDashboard() {
                 <div><label className={labelClass}>Full Name *</label><input className={inputClass} value={studentForm.full_name} onChange={e => setStudentForm(p => ({ ...p, full_name: e.target.value }))} placeholder="e.g. Rahul Sharma" /></div>
                 <div><label className={labelClass}>Student email *</label><input className={inputClass} type="email" value={studentForm.email} onChange={e => setStudentForm(p => ({ ...p, email: e.target.value }))} placeholder="Student's inbox for welcome email" required /></div>
                 <div><label className={labelClass}>Password *</label><input className={inputClass} type="password" value={studentForm.password} onChange={e => setStudentForm(p => ({ ...p, password: e.target.value }))} placeholder="Min 6 characters" /></div>
+                <div>
+                  <label className={labelClass}>Batch *</label>
+                  <select className={inputClass} value={studentForm.batch} onChange={e => setStudentForm(p => ({ ...p, batch: e.target.value }))} required>
+                    <option value="">Select Batch</option>
+                    {getUniqueBatches().map(batch => (
+                      <option key={batch} value={batch}>{batch}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className={labelClass}>Class (auto-assigned)</label>
                   <input className={cn(inputClass, "bg-muted/80")} value={teacherClass ? `Class ${teacherClass}` : "Not assigned"} disabled />
@@ -1586,8 +1644,8 @@ export default function TeacherDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {myAttendance.slice(0, 30).map((att: any) => (
-                    <tr key={att.id} className="border-b border-border/30 last:border-0">
+                  {myAttendance.slice(0, 30).map((att: any, index: number) => (
+                    <tr key={att.id || `att-${index}`} className="border-b border-border/30 last:border-0">
                       <td className="px-4 py-3 text-sm text-foreground">{format(new Date(att.date), "PPP")}</td>
                       <td className="px-4 py-3">
                         <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium",
@@ -1656,8 +1714,8 @@ export default function TeacherDashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {myLeaves.map((lv: any) => (
-                <motion.div key={lv.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card-hover p-4">
+              {myLeaves.map((lv: any, index: number) => (
+                <motion.div key={lv.id || `leave-${index}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card-hover p-4">
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
@@ -1903,7 +1961,7 @@ export default function TeacherDashboard() {
                       <h3 className="font-semibold text-foreground text-sm line-clamp-2">{lec.title}</h3>
                       {lec.description && <p className="text-xs text-muted-foreground line-clamp-2">{lec.description}</p>}
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-muted-foreground">{format(new Date(lec.created_at), "PP")}</span>
+                        <span className="text-[11px] text-muted-foreground">{lec.created_at ? format(new Date(lec.created_at), "PP") : "No date"}</span>
                         <button
                           onClick={async () => {
                             const token = getAccessToken();

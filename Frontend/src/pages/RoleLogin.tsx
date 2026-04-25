@@ -328,17 +328,57 @@ export default function RoleLogin() {
           ) : (
           <>
           {/* Header */}
-          <div className="text-center mb-8">
-            <div
-              className="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center shadow-lg"
-              style={{ background: config.gradient }}
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="text-center mb-8 animate-fadeInUp"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="relative inline-block"
             >
-              <RoleIcon className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
+              <div
+                className="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center shadow-lg"
+                style={{ background: config.gradient }}
+              >
+                <RoleIcon className="w-6 h-6 text-white" />
+              </div>
+              {/* Glow effect */}
+              <motion.div
+                className="absolute inset-0 w-12 h-12 rounded-xl mx-auto -z-10"
+                style={{ 
+                  background: config.gradient,
+                  filter: 'blur(12px)',
+                  opacity: 0.6
+                }}
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  opacity: [0.6, 0.3, 0.6]
+                }}
+                transition={{ 
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+            </motion.div>
+            <motion.h1 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="text-2xl font-extrabold text-foreground tracking-tight"
+            >
               {isLogin ? `${config.label} Sign In` : `Create ${config.label} Account`}
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1.5">
+            </motion.h1>
+            <motion.p 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="text-muted-foreground text-sm mt-1.5"
+            >
               {isLogin
                 ? validRole === "student"
                   ? "Sign in with your Student ID and password"
@@ -346,20 +386,29 @@ export default function RoleLogin() {
                     ? "Sign in with your Teacher code and password"
                     : "Enter your credentials to continue"
                 : "Fill in your details to get started"}
-            </p>
-          </div>
+            </motion.p>
+          </motion.div>
 
           {/* Login Card */}
-          <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl p-7 shadow-[0_8px_40px_-12px_hsl(var(--primary)/0.1)]">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="glass-card p-7 animate-fadeInUp"
+          >
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
-                <div>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
                   <label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block font-medium">
                     Full Name
                   </label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input
+                  <div className="relative group">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                    <motion.input
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
@@ -367,10 +416,15 @@ export default function RoleLogin() {
                       required={!isLogin}
                       autoComplete="off"
                       autoCorrect="off"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-muted/30 border border-border/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/10 transition-all duration-200"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-muted/30 border border-border/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/10 transition-all duration-300 focus:scale-[1.02] focus:bg-white/50"
+                      whileFocus={{ scale: 1.02 }}
                     />
+                    {/* Focus ring effect */}
+                    <div className="absolute inset-0 rounded-xl pointer-events-none">
+                      <div className="absolute inset-0 rounded-xl border-2 border-primary/20 opacity-0 transition-opacity duration-300 group-focus-within:opacity-100" />
+                    </div>
                   </div>
-                </div>
+                </motion.div>
               )}
 
               {isLogin && validRole === "student" ? (
@@ -453,7 +507,7 @@ export default function RoleLogin() {
                     minLength={6}
                     autoComplete="off"
                     autoCorrect="off"
-                    className="w-full pl-10 pr-11 py-3 rounded-xl bg-muted/30 border border-border/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/10 transition-all duration-200"
+                    className="w-full pl-10 pr-11 py-3 rounded-xl bg-muted/30 border border-border/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/10 transition-all duration-200 focus:scale-[1.02] focus:bg-white/50"
                   />
                   <button
                     type="button"
@@ -476,25 +530,39 @@ export default function RoleLogin() {
                 </div>
               )}
 
-              <button
+              <motion.button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-xl font-semibold text-sm text-white shadow-lg hover:shadow-xl hover:brightness-110 disabled:opacity-50 transition-all duration-300 relative overflow-hidden group"
+                className="btn-premium w-full py-3 rounded-xl font-semibold text-sm relative overflow-hidden group"
                 style={{ background: config.gradient }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ duration: 0.2 }}
               >
-                <span className="relative z-10">{loading ? "Loading..." : isLogin ? "Sign In" : "Create Account"}</span>
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  {loading ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                      />
+                      Loading...
+                    </>
+                  ) : isLogin ? "Sign In" : "Create Account"}
+                </span>
                 <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </button>
+              </motion.button>
             </form>
 
-                      </div>
+          </motion.div>
 
           {/* Demo Accounts */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.4 }}
-            className="mt-6 rounded-2xl border border-border/40 bg-card/60 backdrop-blur-sm p-5"
+            className="glass-card-hover mt-6 p-5 animate-slideInRight"
           >
             <div className="flex items-center gap-2 mb-3">
               <Zap className="w-4 h-4 text-warning" />
@@ -504,11 +572,14 @@ export default function RoleLogin() {
               {demoAccounts
                 .filter((demo) => demo.role.toLowerCase() === validRole)
                 .map((demo) => (
-                <button
+                <motion.button
                   key={demo.role}
                   onClick={() => handleDemoLogin(demo.email, demo.password)}
                   disabled={loading}
                   className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-muted/20 border border-border/30 hover:bg-muted/40 hover:border-primary/20 transition-all duration-200 text-left group disabled:opacity-50"
+                  whileHover={{ scale: 1.02, x: 4 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
                 >
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
@@ -527,7 +598,7 @@ export default function RoleLogin() {
                   <span className="text-[10px] font-semibold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
                     Login →
                   </span>
-                </button>
+                </motion.button>
               ))}
             </div>
           </motion.div>

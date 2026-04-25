@@ -27,10 +27,19 @@ interface FeePayment {
   student_name?: string;
 }
 
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+  }
+}
+
 export default function FeeManagement() {
   const { user, roles, profile } = useAuth();
   const isAdmin = roles.includes("admin");
   const isStudent = !roles.includes("admin") && !roles.includes("teacher");
+
+  const normalizeBatch = (b?: string | null) => String(b ?? "").trim().replace(/^batch\s+/i, "").trim().toUpperCase();
+  const sameBatch = (a?: string | null, b?: string | null) => normalizeBatch(a) && normalizeBatch(a) === normalizeBatch(b);
 
   const [tab, setTab] = useState<"structure" | "payments" | "student">(isStudent ? "student" : "structure");
   const [fees, setFees] = useState<FeeStructure[]>([]);
@@ -43,6 +52,7 @@ export default function FeeManagement() {
   const [payForm, setPayForm] = useState({ student_id: "", fee_structure_id: "", amount_paid: 0, payment_method: "cash", receipt_no: "", notes: "" });
 
   const [students, setStudents] = useState<{ id: string; full_name: string; class_name: string | null; role?: string }[]>([]);
+  const [razorpayLoading, setRazorpayLoading] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchData();
@@ -138,7 +148,7 @@ export default function FeeManagement() {
       method: "POST",
       accessToken,
       body: JSON.stringify({
-      batch: feeForm.batch,
+      batch: feeForm.batch.trim(),
       fee_type: feeForm.fee_type,
       amount: feeForm.amount,
       due_date: feeForm.due_date,
@@ -182,6 +192,76 @@ export default function FeeManagement() {
     return { paid, remaining, status: remaining <= 0 ? "paid" : new Date(fee.due_date) < new Date() ? "overdue" : "pending" };
   };
 
+  const loadRazorpayScript = async () => {
+    if (window.Razorpay) return true;
+    return new Promise<boolean>((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePayNow = async (fee: FeeStructure, status: { remaining: number }) => {
+    if (!user || !status.remaining) return;
+    const accessToken = getAccessToken();
+    if (!accessToken) { toast.error("Login required"); return; }
+    setRazorpayLoading(fee.id);
+    const scriptOk = await loadRazorpayScript();
+    if (!scriptOk) {
+      toast.error("Unable to load Razorpay checkout");
+      setRazorpayLoading(null);
+      return;
+    }
+    const orderRes = await api<any>("/api/fee/payments/create-order", {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify({ fee_structure_id: fee.id }),
+    });
+    if (orderRes.status !== 200 || !orderRes.data) {
+      toast.error("Unable to create payment order");
+      setRazorpayLoading(null);
+      return;
+    }
+    const order = orderRes.data;
+    const rzp = new window.Razorpay!({
+      key: order.key_id,
+      amount: order.amount,
+      currency: order.currency,
+      name: "LearnX",
+      description: `${fee.fee_type} fee payment`,
+      order_id: order.id,
+      prefill: { name: profile?.full_name || user.email, email: user.email },
+      theme: { color: "#3b82f6" },
+      handler: async (response: any) => {
+        const verifyRes = await api("/api/fee/payments/verify", {
+          method: "POST",
+          accessToken,
+          body: JSON.stringify({
+            fee_structure_id: fee.id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          }),
+        });
+        if (verifyRes.status === 201 || verifyRes.status === 200) {
+          toast.success("Payment successful");
+          void fetchData();
+        } else {
+          toast.error("Payment verification failed");
+        }
+        setRazorpayLoading(null);
+      },
+      modal: { ondismiss: () => setRazorpayLoading(null) },
+    });
+    rzp.open();
+  };
+
+  const studentVisibleFees = fees.filter((f) => !profile?.class_name || sameBatch(f.batch, profile.class_name));
+  const paymentByStudentFee = new Set(payments.map((p) => `${p.student_id}:${p.fee_structure_id}`));
+
   const tabs = isStudent
     ? [{ key: "student" as const, label: "My Fees" }]
     : [
@@ -214,13 +294,13 @@ export default function FeeManagement() {
           {/* ===== STUDENT VIEW ===== */}
           {tab === "student" && isStudent && (
             <div className="space-y-4">
-              {fees.filter(f => !profile?.class_name || f.batch === profile.class_name).length === 0 ? (
+              {studentVisibleFees.length === 0 ? (
                 <div className="text-center py-16">
                   <IndianRupee className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
                   <p className="text-muted-foreground">No fees assigned to your batch</p>
                 </div>
               ) : (
-                fees.filter(f => !profile?.class_name || f.batch === profile.class_name).map((fee, i) => {
+                studentVisibleFees.map((fee, i) => {
                   const status = getStudentFeeStatus(fee.id);
                   return (
                     <motion.div key={fee.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
@@ -258,6 +338,17 @@ export default function FeeManagement() {
                       <div className="mt-3 h-2 bg-muted/30 rounded-full overflow-hidden">
                         <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all" style={{ width: `${Math.min(100, (status.paid / fee.amount) * 100)}%` }} />
                       </div>
+                      {status.remaining > 0 && (
+                        <div className="mt-3">
+                          <button
+                            onClick={() => void handlePayNow(fee, status)}
+                            disabled={razorpayLoading === fee.id}
+                            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60"
+                          >
+                            {razorpayLoading === fee.id ? "Processing..." : `Pay Now ₹${Math.max(0, status.remaining).toLocaleString()}`}
+                          </button>
+                        </div>
+                      )}
                     </motion.div>
                   );
                 })
@@ -389,7 +480,6 @@ export default function FeeManagement() {
                         <option value="upi">UPI</option>
                         <option value="bank_transfer">Bank Transfer</option>
                         <option value="cheque">Cheque</option>
-                        <option value="online">Online</option>
                       </select>
                     </div>
                     <div>
@@ -439,6 +529,27 @@ export default function FeeManagement() {
                   </table>
                 </div>
               )}
+
+              <div className="mt-6 space-y-3">
+                <h3 className="font-semibold text-foreground">Student-wise Fee Status</h3>
+                {fees.map((fee) => {
+                  const batchStudents = students.filter((s) => sameBatch(s.class_name, fee.batch));
+                  const paidCount = batchStudents.filter((s) => paymentByStudentFee.has(`${s.id}:${fee.id}`)).length;
+                  const unpaidCount = Math.max(0, batchStudents.length - paidCount);
+                  return (
+                    <div key={`summary-${fee.id}`} className="bg-card border border-border/20 rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold text-foreground capitalize">{fee.fee_type} Fee - Batch {fee.batch}</p>
+                        <p className="text-sm text-muted-foreground">Total Students: {batchStudents.length}</p>
+                      </div>
+                      <div className="mt-2 flex gap-3 text-sm">
+                        <span className="px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-600">Paid: {paidCount}</span>
+                        <span className="px-2 py-1 rounded-lg bg-destructive/10 text-destructive">Unpaid: {unpaidCount}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </>

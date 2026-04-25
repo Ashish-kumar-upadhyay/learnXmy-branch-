@@ -28,10 +28,40 @@ export default function Profile() {
     if (profile && !loaded) {
       setFullName(profile.full_name || "");
       setClassName(profile.class_name || "");
-      setAvatarUrl(profile.avatar_url || null);
+      // Ensure avatar_url is properly formatted
+      const avatar = profile.avatar_url;
+      console.log("Profile useEffect - avatar from backend:", avatar);
+      if (avatar && typeof avatar === "string") {
+        // If it's already a full URL, use it as-is
+        if (avatar.startsWith("http")) {
+          setAvatarUrl(avatar);
+        } else {
+          console.log("Avatar URL from profile:", avatar);
+          setAvatarUrl(avatar);
+        }
+      } else {
+        setAvatarUrl(null);
+      }
       setLoaded(true);
     }
   }, [profile, loaded]);
+  
+  // Also update when profile changes after refresh
+  useEffect(() => {
+    if (profile && loaded) {
+      const avatar = profile.avatar_url;
+      console.log("Profile update useEffect - avatar from backend:", avatar);
+      if (avatar && typeof avatar === "string") {
+        if (avatar.startsWith("http")) {
+          setAvatarUrl(avatar);
+        } else {
+          setAvatarUrl(avatar);
+        }
+      } else {
+        setAvatarUrl(null);
+      }
+    }
+  }, [profile]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -62,26 +92,65 @@ export default function Profile() {
     }
 
     const newUrl = json.data?.url as string | undefined;
-    const absUrl = newUrl?.startsWith("/") ? `${API_BASE}${newUrl}` : newUrl || null;
+    console.log("Upload response:", json);
+    console.log("New avatar URL:", newUrl);
+    // Ensure the URL is properly formatted
+    const absUrl = newUrl ? (newUrl.startsWith("http") ? newUrl : `${API_BASE}${newUrl}`) : null;
+    console.log("Formatted avatar URL:", absUrl);
+    
+    // Update local state immediately
     setAvatarUrl(absUrl);
-    toast.success("Avatar updated!");
+    
+    // Also update the profile in backend to persist the change
+    const profileUpdateRes = await api("/api/auth/profile", {
+      method: "PUT",
+      accessToken,
+      body: JSON.stringify({ avatar_url: absUrl }),
+    });
+    
+    if (profileUpdateRes.status !== 200) {
+      console.error("Failed to save avatar to profile:", profileUpdateRes);
+      toast.error("Avatar uploaded but not saved to profile");
+    } else {
+      console.log("Avatar saved to profile successfully");
+      toast.success("Avatar updated!");
+    }
+    
     setUploading(false);
-    refreshProfile?.();
+    console.log("refreshProfile function:", refreshProfile);
+    // Refresh profile to get updated data
+    await refreshProfile?.();
   };
 
   const selectDefaultAvatar = async (url: string) => {
     const accessToken = getAccessToken();
     if (!accessToken) return;
     if (!user) return;
+    
+    console.log("Selecting default avatar:", url);
+    
+    // Update local state immediately for better UX
     setAvatarUrl(url);
+    
+    // Save to backend
     const out = await api("/api/auth/profile", {
       method: "PUT",
       accessToken,
       body: JSON.stringify({ avatar_url: url }),
     });
-    if (out.status !== 200) toast.error("Avatar save failed");
-    toast.success("Avatar selected!");
-    refreshProfile?.();
+    
+    if (out.status !== 200) {
+      console.error("Avatar save failed:", out);
+      toast.error("Avatar save failed");
+      // Revert local state if backend update failed
+      setAvatarUrl(profile?.avatar_url || null);
+    } else {
+      console.log("Default avatar saved successfully");
+      toast.success("Avatar selected!");
+    }
+    
+    // Refresh profile to ensure consistency
+    await refreshProfile?.();
   };
 
   const handleSave = async () => {
@@ -124,8 +193,23 @@ export default function Profile() {
         <div className="relative group">
           <div className="w-28 h-28 rounded-2xl overflow-hidden border-2 border-border/50 bg-muted/30 flex items-center justify-center">
             {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
+              <img 
+                src={avatarUrl} 
+                alt="Avatar" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  console.error("Avatar image failed to load:", avatarUrl);
+                  // Fallback to initials if image fails to load
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  target.nextElementSibling?.classList.remove('hidden');
+                }}
+                onLoad={() => {
+                  console.log("Avatar image loaded successfully:", avatarUrl);
+                }}
+              />
+            ) : null}
+            {!avatarUrl && (
               <span className="text-4xl font-bold text-primary">{initials}</span>
             )}
           </div>

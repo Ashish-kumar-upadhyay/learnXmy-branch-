@@ -10,6 +10,8 @@ r.get('/', ctrl.listExams);
 r.get('/my-submissions', requireRoles('student', 'admin'), ctrl.mySubmissions);
 r.post('/', requireRoles('teacher', 'admin'), ctrl.createExam);
 r.get('/:id/questions', ctrl.listQuestions);
+r.get('/:id/my-attempt', requireRoles('student', 'admin'), ctrl.myAttempt);
+r.post('/:id/start', requireRoles('student', 'admin'), ctrl.startExam);
 r.post('/:id/questions', requireRoles('teacher', 'admin'), ctrl.addQuestion);
 r.put('/:id/questions/:qid', requireRoles('teacher', 'admin'), ctrl.updateQuestion);
 r.delete('/:id/questions/:qid', requireRoles('teacher', 'admin'), ctrl.deleteQuestion);

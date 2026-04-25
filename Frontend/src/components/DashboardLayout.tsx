@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, FileText, BarChart3, Trophy,
-  Bell, GraduationCap, ChevronLeft, ChevronRight, Zap, Bot, LogOut, School, ClipboardCheck, UserCircle, CalendarDays,   Menu, X, Settings, CalendarOff, Clock, PenTool, IndianRupee, LifeBuoy, Volume2, VolumeX
+  Bell, GraduationCap, ChevronLeft, ChevronRight, Zap, Bot, LogOut, School, ClipboardCheck, UserCircle, CalendarDays,   Menu, X, Settings, CalendarOff, Clock, PenTool, IndianRupee, LifeBuoy, Volume2, VolumeX, Search
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, getAccessToken } from "@/lib/backendApi";
@@ -65,7 +65,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdown, setProfileDropdown] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, profile, roles, signOut, signOutLoading } = useAuth();
   const isAdmin = roles.includes("admin");
   const isTeacher = roles.includes("teacher");
@@ -78,6 +81,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [headerSoundOn, setHeaderSoundOn] = useState(
     () => localStorage.getItem("learnx_notification_sound") !== "off"
   );
+
+  // Search functionality
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    // Don't auto-close on typing, only show results
+  };
+
+  const handleSearchSubmit = (query: string) => {
+    if (query.trim()) {
+      // Search through nav items and navigate
+      const matchedItem = navItems.find(item => 
+        item.label.toLowerCase().includes(query.toLowerCase())
+      );
+      if (matchedItem) {
+        navigate(matchedItem.path);
+        setSearchOpen(false);
+        setSearchQuery("");
+      }
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchOpen(false);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(!searchOpen);
+      }
+      if (e.key === 'Escape') {
+        setSearchOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [searchOpen]);
 
   useEffect(() => {
     localStorage.setItem("learnx_notification_sound", headerSoundOn ? "on" : "off");
@@ -355,6 +397,101 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Right: Actions */}
             <div className="flex items-center gap-1.5">
+              {/* Search Bar */}
+              <div className="relative">
+                <motion.button
+                  onClick={() => setSearchOpen(!searchOpen)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all duration-200"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Search className="w-4 h-4" />
+                  <span className="hidden sm:inline">Search...</span>
+                  <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono bg-muted/50 rounded border border-border/30">
+                    ⌘K
+                  </kbd>
+                </motion.button>
+                
+                <AnimatePresence>
+                  {searchOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setSearchOpen(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-w-md lg:w-80 rounded-2xl border border-border/20 bg-card/95 backdrop-blur-2xl shadow-2xl shadow-black/10 p-4 z-50"
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          <Search className="w-4 h-4 text-muted-foreground" />
+                          <input
+                            type="text"
+                            placeholder="Search pages..."
+                            value={searchQuery}
+                            onChange={(e) => handleSearch(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleSearchSubmit(searchQuery);
+                              } else if (e.key === 'Escape') {
+                                setSearchOpen(false);
+                              }
+                            }}
+                            className="flex-1 bg-transparent border-0 outline-none text-sm text-foreground placeholder:text-muted-foreground"
+                            autoFocus
+                          />
+                          {searchQuery && (
+                            <button
+                              onClick={clearSearch}
+                              className="p-1 text-muted-foreground hover:text-foreground rounded-lg transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Search Results */}
+                        {searchQuery && (
+                          <div className="space-y-1 max-h-48 overflow-y-auto">
+                            {navItems
+                              .filter(item => 
+                                item.label.toLowerCase().includes(searchQuery.toLowerCase())
+                              )
+                              .map(item => (
+                                <Link
+                                  key={item.path}
+                                  to={item.path}
+                                  onClick={() => {
+                                    setSearchOpen(false);
+                                    setSearchQuery("");
+                                  }}
+                                  className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                                >
+                                  <item.icon className="w-4 h-4" />
+                                  <span>{item.label}</span>
+                                </Link>
+                              ))}
+                            {navItems.filter(item => 
+                              item.label.toLowerCase().includes(searchQuery.toLowerCase())
+                            ).length === 0 && (
+                              <div className="text-center py-4 text-sm text-muted-foreground">
+                                No results found
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {!searchQuery && (
+                          <div className="text-center py-2 text-xs text-muted-foreground">
+                            Type to search pages...
+                          </div>
+                        )}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+
               <ThemeToggle />
 
               <button
@@ -476,6 +613,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span className="font-semibold text-sm text-foreground truncate max-w-[150px] md:max-w-none">{currentPage}</span>
             </div>
             <div className="flex items-center gap-1 md:gap-2">
+              {/* Mobile Search Button */}
+              <motion.button
+                onClick={() => setSearchOpen(!searchOpen)}
+                className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-lg transition-colors"
+                whileTap={{ scale: 0.95 }}
+              >
+                <Search className="w-4 h-4" />
+              </motion.button>
+
               <ThemeToggle />
               <button
                 type="button"

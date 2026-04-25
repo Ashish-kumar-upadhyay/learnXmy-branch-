@@ -17,6 +17,7 @@ const statusConfig: Record<string, { class: string; label: string }> = {
   pending: { class: "badge-pending", label: "Pending" },
   submitted: { class: "badge-submitted", label: "Submitted" },
   reviewed: { class: "badge-reviewed", label: "Reviewed" },
+  overdue: { class: "badge-overdue", label: "Overdue - Practice Mode" },
   late: { class: "badge-late", label: "Late" },
 };
 
@@ -110,13 +111,18 @@ export default function Assignments() {
     }
     const now = new Date();
     const due = normalizedDueDate(a.due_date);
-    if (now > due) return "late";
+    if (now > due) return "overdue";
     return "pending";
   };
 
   const canEditSubmission = (a: Assignment) => {
     if (!a.due_date) return true;
     return Date.now() <= normalizedDueDate(a.due_date).getTime();
+  };
+
+  const canPracticeSubmission = (a: Assignment) => {
+    const effectiveStatus = getEffectiveStatus(a);
+    return effectiveStatus === "overdue";
   };
 
   const handleOpenSubmit = (assignment: Assignment) => {
@@ -175,7 +181,7 @@ export default function Assignments() {
 
   const pendingCount = dbAssignments.filter(a => {
     const s = getEffectiveStatus(a);
-    return s === "pending" || s === "late";
+    return s === "pending" || s === "overdue";
   }).length;
 
   const doneCount = dbAssignments.filter(a => {
@@ -214,7 +220,11 @@ export default function Assignments() {
             const status = statusConfig[effectiveStatus];
             const sub = getSubmission(a.id);
             return (
-              <motion.div key={a.id} variants={item} className="glass-card-hover p-5">
+              <motion.div 
+                key={a.id} 
+                variants={item} 
+                className={`glass-card-hover p-5 ${effectiveStatus === "overdue" ? "border-violet-500/30 bg-violet-500/5" : ""}`}
+              >
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
@@ -231,7 +241,7 @@ export default function Assignments() {
                     <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                       {a.batch && <span className="font-mono">{a.batch}</span>}
                       <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> Due: {normalizedDueDate(a.due_date).toLocaleString()}
+                        <Calendar className="w-3 h-3" /> Deadline: {normalizedDueDate(a.due_date).toLocaleString()}
                       </span>
                       {a.duration_hours && (
                         <span className="flex items-center gap-1">
@@ -295,6 +305,14 @@ export default function Assignments() {
                       className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors flex-shrink-0"
                     >
                       <Upload className="w-4 h-4" /> {sub ? "Edit Submission" : "Submit"}
+                    </button>
+                  )}
+                  {isStudent && canPracticeSubmission(a) && (
+                    <button
+                      onClick={() => handleOpenSubmit(a)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-500/10 text-violet-600 text-sm font-medium hover:bg-violet-500/20 transition-colors flex-shrink-0 border border-violet-500/20"
+                    >
+                      <Upload className="w-4 h-4" /> Practice Submit
                     </button>
                   )}
                   {isStudent && effectiveStatus === "submitted" && (

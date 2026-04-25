@@ -8,6 +8,7 @@ import { Attendance } from '../models/Attendance.model';
 import { Class } from '../models/Class.model';
 import { Assignment } from '../models/Assignment.model';
 import { SprintPlanTask } from '../models/SprintPlanTask.model';
+import { SprintPlan } from '../models/SprintPlan.model';
 import { ok, fail } from '../utils/response';
 
 function weekBuckets() {
@@ -23,29 +24,47 @@ function weekBuckets() {
   return buckets;
 }
 
+function batchVariants(batchRaw: string | null | undefined): string[] {
+  const b = String(batchRaw || '').trim();
+  if (!b) return [];
+  const stripped = b.replace(/^batch\s+/i, '').trim();
+  const withPrefix = stripped ? `Batch ${stripped}` : '';
+  return Array.from(new Set([b, stripped, withPrefix].filter(Boolean)));
+}
+
 export async function myAnalytics(req: AuthRequest, res: Response) {
   if (!req.authUser) return fail(res, 401, 'Unauthorized');
   const uid = new Types.ObjectId(req.authUser.id);
   const me = await User.findById(uid).lean();
   const batch = me?.assignedClass ?? null;
+  const batchOptions = batchVariants(batch);
 
-  const [attRows, classRows, myAssignSubs, pubAssignments, myExamSubs, sprintRows] = await Promise.all([
+  const [attRows, classRows, pubAssignments, myExamSubs, sprintPlans] = await Promise.all([
     Attendance.find({ student_id: uid }).select('status date checked_in_at').lean(),
-    batch ? Class.find({ batch }).select('schedule created_at').lean() : Promise.resolve([] as any[]),
-    AssignmentSubmission.find({ student_id: uid }).select('submitted_at').lean(),
-    batch ? Assignment.find({ batch, status: 'published' }).select('created_at').lean() : Promise.resolve([] as any[]),
+    batchOptions.length ? Class.find({ batch: { $in: batchOptions } }).select('schedule created_at').lean() : Promise.resolve([] as any[]),
+    batchOptions.length ? Assignment.find({ batch: { $in: batchOptions }, status: 'published' }).select('_id created_at').lean() : Promise.resolve([] as any[]),
     ExamSubmission.find({ student_id: uid }).select('percentage submitted_at').lean(),
-    SprintPlanTask.find({}).select('is_done').lean(),
+    batchOptions.length ? SprintPlan.find({ batch: { $in: batchOptions } }).select('id').lean() : Promise.resolve([] as any[]),
+  ]);
+
+  const assignmentIds = (pubAssignments as any[]).map((a) => a._id);
+  const sprintPlanIds = (sprintPlans as any[]).map((p) => String(p.id)).filter(Boolean);
+  const [myAssignSubs, sprintRows] = await Promise.all([
+    assignmentIds.length
+      ? AssignmentSubmission.find({ student_id: uid, assignment_id: { $in: assignmentIds } }).select('submitted_at assignment_id').lean()
+      : Promise.resolve([] as any[]),
+    sprintPlanIds.length
+      ? SprintPlanTask.find({ sprint_plan_id: { $in: sprintPlanIds } }).select('is_done').lean()
+      : Promise.resolve([] as any[]),
   ]);
 
   const presentCount = (attRows as any[]).filter((a) => a.status === 'present' || a.status === 'late').length;
   const totalClasses = (classRows as any[]).length;
-  const attendancePercent = totalClasses > 0 ? Math.round((presentCount / totalClasses) * 100) : 0;
+  const fallbackTotal = (attRows as any[]).length;
+  const attendanceBase = totalClasses > 0 ? totalClasses : fallbackTotal;
+  const attendancePercent = attendanceBase > 0 ? Math.round((presentCount / attendanceBase) * 100) : 0;
 
-  const assignmentPercent =
-    (pubAssignments as any[]).length > 0
-      ? Math.round(((myAssignSubs as any[]).length / (pubAssignments as any[]).length) * 100)
-      : 0;
+  const assignmentPercent = (pubAssignments as any[]).length > 0 ? Math.round(((myAssignSubs as any[]).length / (pubAssignments as any[]).length) * 100) : 0;
 
   const examScores = (myExamSubs as any[])
     .map((e) => Number(e.percentage))
@@ -69,14 +88,13 @@ export async function myAnalytics(req: AuthRequest, res: Response) {
     }).length;
     const attendance = weekClasses > 0 ? Math.round((weekAtt / weekClasses) * 100) : 0;
 
-    const weekAssTotal = (pubAssignments as any[]).filter((a) => {
+    const weekAssignments = (pubAssignments as any[]).filter((a) => {
       const d = new Date(a.created_at ?? 0);
       return d >= w.start && d < w.end;
-    }).length;
-    const weekAssDone = (myAssignSubs as any[]).filter((s) => {
-      const d = new Date(s.submitted_at ?? 0);
-      return d >= w.start && d < w.end;
-    }).length;
+    });
+    const weekAssignmentIds = new Set(weekAssignments.map((a) => String(a._id)));
+    const weekAssTotal = weekAssignments.length;
+    const weekAssDone = (myAssignSubs as any[]).filter((s) => weekAssignmentIds.has(String(s.assignment_id))).length;
     const assignments = weekAssTotal > 0 ? Math.round((weekAssDone / weekAssTotal) * 100) : 0;
 
     const weekExamScores = (myExamSubs as any[])

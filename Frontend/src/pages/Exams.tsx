@@ -1,24 +1,24 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, Clock, Award, CheckCircle2, Play, Eye, Trash2, Edit } from "lucide-react";
+import { Plus, Clock, Award, CheckCircle2, Play, Eye, Trash2, Camera, AlertTriangle, Shield, Wand2, RefreshCw, Calendar } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { api, API_BASE, getAccessToken } from "@/lib/backendApi";
 import { format } from "date-fns";
-import { api, getAccessToken } from "@/lib/backendApi";
 
 interface Exam {
   id: string;
   title: string;
-  description: string | null;
   batch: string | null;
   teacher_id: string;
   exam_type: string;
   duration_minutes: number;
-  total_marks: number;
+  total_marks?: number;
   status: string;
-  scheduled_at: string | null;
+  scheduled_at?: string | null;
+  due_date?: string | null;
+  due_time?: string | null;
   created_at: string;
-  teacher_name?: string;
   question_count?: number;
 }
 
@@ -27,7 +27,7 @@ interface Question {
   exam_id: string;
   question: string;
   options: string[];
-  correct_answer: string;
+  correct_answer?: string;
   marks: number;
   sort_order: number;
 }
@@ -40,15 +40,59 @@ interface Submission {
   score: number;
   percentage: number | null;
   status: string;
+  warning_count?: number;
+  auto_submit_reason?: "time_up" | "tab_switch" | "reload" | null;
+  result_breakdown?: ResultItem[];
+  expires_at?: string;
 }
 
-type View = "list" | "create" | "questions" | "attempt" | "results";
+interface ResultItem {
+  question_id: string;
+  question: string;
+  selected_answer: string | null;
+  correct_answer: string;
+  is_correct: boolean;
+}
+
+interface AttemptStartPayload {
+  id: string;
+  exam_id: string;
+  student_id: string;
+  status: string;
+  started_at: string;
+  expires_at: string;
+  warning_count: number;
+}
+
+interface SubmitPayload extends Submission {
+  total_questions: number;
+  correct_answers: number;
+  wrong_answers: number;
+}
+
+interface AiDraftQuestion {
+  localId: string;
+  question: string;
+  options: string[];
+  correct_answer: string;
+  selected: boolean;
+}
+
+type View = "list" | "create" | "questions" | "attempt" | "result";
+
+const ACTIVE_EXAM_KEY = "learnx_active_exam";
+const ACTIVE_ANSWERS_KEY = "learnx_active_exam_answers";
 
 export default function Exams() {
   const { user, roles, profile } = useAuth();
   const isStudent = !roles.includes("admin") && !roles.includes("teacher");
   const isTeacher = roles.includes("teacher");
   const isAdmin = roles.includes("admin");
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const tabSwitchedRef = useRef(false);
+  const lastWarningRef = useRef<string>("");
+  const lastWarningTypeRef = useRef<"warning" | "error">("warning");
 
   const normalizeBatch = (b?: string | null) => {
     const s = String(b ?? "").trim();
@@ -62,30 +106,79 @@ export default function Exams() {
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [resultData, setResultData] = useState<SubmitPayload | null>(null);
+  const [warningCount, setWarningCount] = useState(0);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [attemptMeta, setAttemptMeta] = useState<AttemptStartPayload | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [attemptAlert, setAttemptAlert] = useState<{ type: "warning" | "error"; text: string } | null>(null);
+  const [alertModal, setAlertModal] = useState<{ type: "warning" | "error"; text: string } | null>(null);
 
-  // Create exam form
-  const [examForm, setExamForm] = useState({ title: "", description: "", batch: "", exam_type: "quiz", duration_minutes: 30, total_marks: 100, scheduled_at: "" });
+  const [examForm, setExamForm] = useState({ 
+  title: "", 
+  batch: "", 
+  exam_type: "quiz", 
+  duration_minutes: 10,
+  due_date: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+  due_time: "23:59"
+});
 
-  // Question form
-  const [qForm, setQForm] = useState({ question_text: "", options: ["", "", "", ""], correct_answer: "", marks: 1 });
+  const [qForm, setQForm] = useState({ question: "", options: ["", "", "", ""], correct_answer: "", marks: 1 });
+  const [questionMode, setQuestionMode] = useState<"manual" | "ai">("manual");
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiDrafts, setAiDrafts] = useState<AiDraftQuestion[]>([]);
 
-  // Attempt state
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(0);
 
-  useEffect(() => { void fetchExams(); }, [user, roles, profile]);
+  const clearMedia = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setCameraReady(false);
+  }, []);
 
-  const fetchExams = async () => {
+  const playAlertBeep = useCallback(() => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.15, audioCtx.currentTime + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2);
+      oscillator.start(audioCtx.currentTime);
+      oscillator.stop(audioCtx.currentTime + 0.22);
+    } catch {
+      // no-op when browser blocks audio context
+    }
+  }, []);
+
+  const clearActiveAttemptStorage = useCallback(() => {
+    localStorage.removeItem(ACTIVE_EXAM_KEY);
+    localStorage.removeItem(ACTIVE_ANSWERS_KEY);
+  }, []);
+
+  const fetchExams = useCallback(async () => {
     setLoading(true);
     const accessToken = getAccessToken();
-    if (!accessToken) { setExams([]); setSubmissions([]); setLoading(false); return; }
+    if (!accessToken) {
+      setExams([]);
+      setSubmissions([]);
+      setLoading(false);
+      return;
+    }
 
     const batch = normalizeBatch(profile?.class_name || profile?.batch || "");
-    // Students: published exams for their class. Teachers: own exams only. Admins: all exams.
     const examsPath = isStudent
       ? `/api/exams?status=published${batch ? `&batch=${encodeURIComponent(batch)}` : ""}`
       : isAdmin
-        ? `/api/exams`
+        ? "/api/exams"
         : `/api/exams?teacher_id=${encodeURIComponent(user?.id || "")}`;
 
     const [examsRes, subsRes] = await Promise.all([
@@ -96,44 +189,65 @@ export default function Exams() {
     setExams(examsRes.status === 200 && examsRes.data ? examsRes.data : []);
     setSubmissions(subsRes.status === 200 && subsRes.data ? subsRes.data : []);
     setLoading(false);
-  };
+  }, [isAdmin, isStudent, profile?.batch, profile?.class_name, user?.id]);
+
+  useEffect(() => { void fetchExams(); }, [fetchExams]);
 
   const handleCreateExam = async () => {
-    if (!examForm.title) { toast.error("Title required"); return; }
+    if (!examForm.title.trim()) { toast.error("Title required"); return; }
     const accessToken = getAccessToken();
     if (!accessToken) { toast.error("Login required"); return; }
+    
+    // Calculate due date
+    const dueAt = new Date(examForm.due_date);
+    const [hh, mm] = (examForm.due_time || "23:59").split(":");
+    dueAt.setHours(Number(hh) || 23, Number(mm) || 59, 0, 0);
+    
     const res = await api<Exam>("/api/exams", {
       method: "POST",
       accessToken,
       body: JSON.stringify({
         title: examForm.title,
-        description: examForm.description || null,
         batch: normalizeBatch(examForm.batch || profile?.class_name || profile?.batch || "") || null,
         teacher_id: user!.id,
         exam_type: examForm.exam_type,
         duration_minutes: examForm.duration_minutes,
-        total_marks: examForm.total_marks,
-        scheduled_at: examForm.scheduled_at || null,
+        total_marks: 5,
         status: "draft",
+        due_date: dueAt.toISOString(),
+        due_time: examForm.due_time,
       }),
     });
     if (res.status !== 201 || !res.data) { toast.error("Failed to create exam"); return; }
     toast.success("Exam created! Now add questions.");
     setSelectedExam(res.data as Exam);
+    setQuestionMode("manual");
+    setExamForm({ 
+      title: "", 
+      batch: "", 
+      exam_type: "quiz", 
+      duration_minutes: 10,
+      due_date: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+      due_time: "23:59"
+    });
     setView("questions");
     void fetchExams();
   };
 
   const handleAddQuestion = async () => {
-    if (!qForm.question_text || !qForm.correct_answer) { toast.error("Fill question and correct answer"); return; }
+    const filledOptions = qForm.options.map((o) => o.trim()).filter(Boolean);
+    if (!qForm.question.trim()) { toast.error("Question text required"); return; }
+    if (filledOptions.length !== 4) { toast.error("Exactly 4 options are required"); return; }
+    if (!qForm.correct_answer) { toast.error("Select the correct answer"); return; }
+    if (questions.length >= 5) { toast.error("Only 5 questions allowed"); return; }
     const accessToken = getAccessToken();
     if (!accessToken) { toast.error("Login required"); return; }
     const res = await api(`/api/exams/${selectedExam!.id}/questions`, {
       method: "POST",
       accessToken,
       body: JSON.stringify({
-        question: qForm.question_text,
-        options: qForm.options.filter(o => o.trim()),
+        question: qForm.question.trim(),
+        options: qForm.options.map((o) => o.trim()),
         correct_answer: qForm.correct_answer,
         marks: qForm.marks,
         sort_order: questions.length,
@@ -141,8 +255,96 @@ export default function Exams() {
     });
     if (res.status !== 201 && res.status !== 200) { toast.error("Failed to add question"); return; }
     toast.success("Question added!");
-    setQForm({ question_text: "", options: ["", "", "", ""], correct_answer: "", marks: 1 });
+    setQForm({ question: "", options: ["", "", "", ""], correct_answer: "", marks: 1 });
     void fetchQuestions(selectedExam!.id);
+  };
+
+  const generateAiQuestions = async () => {
+    if (!aiTopic.trim()) {
+      toast.error("Topic is required");
+      return;
+    }
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      toast.error("Login required");
+      return;
+    }
+    setAiLoading(true);
+    const res = await api<Array<{ question: string; options: string[]; correct_answer: string }>>("/api/ai/exam/mcqs", {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify({ topic: aiTopic.trim(), count: 10 }),
+    });
+    setAiLoading(false);
+    if (res.status !== 200 || !res.data?.length) {
+      toast.error("Failed to generate AI questions");
+      return;
+    }
+    const normalized = res.data
+      .filter((item) => item.question && Array.isArray(item.options) && item.options.length === 4 && item.correct_answer)
+      .map((item, index) => ({
+        localId: `${Date.now()}-${index}`,
+        question: item.question,
+        options: item.options,
+        correct_answer: item.correct_answer,
+        selected: index < 5,
+      }));
+    setAiDrafts(normalized);
+    toast.success(`Generated ${normalized.length} AI questions`);
+  };
+
+  const toggleAiSelection = (id: string) => {
+    setAiDrafts((prev) => prev.map((q) => (q.localId === id ? { ...q, selected: !q.selected } : q)));
+  };
+
+  const updateAiDraft = (id: string, patch: Partial<AiDraftQuestion>) => {
+    setAiDrafts((prev) => prev.map((q) => (q.localId === id ? { ...q, ...patch } : q)));
+  };
+
+  const addSelectedAiQuestionsToExam = async () => {
+    if (!selectedExam) return;
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      toast.error("Login required");
+      return;
+    }
+    const selected = aiDrafts.filter((q) => q.selected);
+    if (!selected.length) {
+      toast.error("Select at least one question");
+      return;
+    }
+    const slotsLeft = 5 - questions.length;
+    if (slotsLeft <= 0) {
+      toast.error("Exam already has 5 questions");
+      return;
+    }
+    const toInsert = selected.slice(0, slotsLeft);
+    for (let i = 0; i < toInsert.length; i += 1) {
+      const q = toInsert[i];
+      const validOptions = q.options.map((x) => x.trim()).filter(Boolean);
+      if (!q.question.trim() || validOptions.length !== 4 || !validOptions.includes(q.correct_answer)) continue;
+      const res = await api(`/api/exams/${selectedExam.id}/questions`, {
+        method: "POST",
+        accessToken,
+        body: JSON.stringify({
+          question: q.question.trim(),
+          options: validOptions,
+          correct_answer: q.correct_answer,
+          marks: 1,
+          sort_order: questions.length + i,
+        }),
+      });
+      if (res.status !== 201 && res.status !== 200) {
+        toast.error("Some AI questions could not be added");
+        break;
+      }
+    }
+    if (selected.length > slotsLeft) {
+      toast.warning(`Only ${slotsLeft} questions added (exam limit is 5).`);
+    } else {
+      toast.success("Selected AI questions added to exam");
+    }
+    await fetchQuestions(selectedExam.id);
   };
 
   const fetchQuestions = async (examId: string) => {
@@ -153,6 +355,10 @@ export default function Exams() {
   };
 
   const handlePublish = async (examId: string) => {
+    if (questions.length !== 5) {
+      toast.error("Publish requires exactly 5 questions");
+      return;
+    }
     const accessToken = getAccessToken();
     if (!accessToken) { toast.error("Login required"); return; }
     const res = await api(`/api/exams/${examId}`, {
@@ -165,45 +371,190 @@ export default function Exams() {
     void fetchExams();
   };
 
+  const ensureCamera = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => undefined);
+      }
+      setCameraReady(true);
+      return true;
+    } catch {
+      setCameraReady(false);
+      toast.error("Camera permission is required for exam attempt.");
+      return false;
+    }
+  }, []);
+
   const startExam = async (exam: Exam) => {
-    // Check if already attempted
-    const existing = submissions.find(s => s.exam_id === exam.id);
-    if (existing) {
+    const existing = submissions.find((s) => s.exam_id === exam.id);
+    if (existing && (existing.status === "submitted" || existing.status === "auto_submitted")) {
       toast.error("You have already attempted this exam. Only one attempt is allowed.");
+      return;
+    }
+    const cameraOk = await ensureCamera();
+    if (!cameraOk) return;
+    const accessToken = getAccessToken();
+    if (!accessToken) return;
+    const started = await api<AttemptStartPayload>(`/api/exams/${exam.id}/start`, {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify({}),
+    });
+    if (started.status !== 200 || !started.data) {
+      toast.error("Unable to start exam");
+      clearMedia();
       return;
     }
     setSelectedExam(exam);
     await fetchQuestions(exam.id);
     setAnswers({});
-    setTimeLeft(exam.duration_minutes * 60);
+    setAttemptAlert(null);
+    setAlertModal(null);
+    tabSwitchedRef.current = false;
+    lastWarningRef.current = "";
+    lastWarningTypeRef.current = "warning";
+    setAttemptMeta(started.data);
+    setWarningCount(started.data.warning_count ?? 0);
+    const secs = Math.max(0, Math.floor((new Date(started.data.expires_at).getTime() - Date.now()) / 1000));
+    setTimeLeft(secs);
+    localStorage.setItem(ACTIVE_EXAM_KEY, exam.id);
+    localStorage.setItem(ACTIVE_ANSWERS_KEY, JSON.stringify({}));
     setView("attempt");
   };
 
-  // Timer
   useEffect(() => {
-    if (view !== "attempt" || timeLeft <= 0) return;
+    if (view !== "attempt") return;
     const timer = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) { submitExam(); return 0; }
+      setTimeLeft((t) => {
+        if (t <= 1) {
+          void submitExam("time_up");
+          return 0;
+        }
         return t - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [view, timeLeft]);
+  }, [view]);
 
-  const submitExam = async () => {
-    if (!selectedExam || !user) return;
+  useEffect(() => {
+    if (view !== "attempt") return;
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        tabSwitchedRef.current = true;
+        setWarningCount((prev) => {
+          const next = prev + 1;
+          if (next === 1) {
+            const msg = "Tab switch detected. Next switch will auto-submit your exam.";
+            lastWarningRef.current = msg;
+            lastWarningTypeRef.current = "warning";
+          } else {
+            const msg = "Second tab switch detected. Exam is being auto-submitted.";
+            lastWarningRef.current = msg;
+            lastWarningTypeRef.current = "error";
+            void submitExam("tab_switch");
+          }
+          return next;
+        });
+        return;
+      }
+      if (document.visibilityState === "visible" && tabSwitchedRef.current) {
+        tabSwitchedRef.current = false;
+        if (lastWarningRef.current) {
+          const payload = { type: lastWarningTypeRef.current, text: lastWarningRef.current } as const;
+          setAttemptAlert(payload);
+          setAlertModal(payload);
+          playAlertBeep();
+          toast.warning(lastWarningRef.current, { duration: 5000 });
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [playAlertBeep, view]);
+
+  useEffect(() => {
+    if (view !== "attempt") return;
+    if (!videoRef.current || !streamRef.current) return;
+    videoRef.current.srcObject = streamRef.current;
+    void videoRef.current.play().catch(() => undefined);
+    setCameraReady(true);
+  }, [view]);
+
+  useEffect(() => {
+    if (view !== "attempt" || !selectedExam) return;
+    const onBeforeUnload = () => {
+      try {
+        const accessToken = getAccessToken();
+        const payload = JSON.stringify({ answers, auto_submit_reason: "reload" });
+        if (accessToken) {
+          fetch(`${API_BASE}/api/exams/${selectedExam.id}/submit`, {
+            method: "POST",
+            keepalive: true,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: payload,
+          }).catch(() => undefined);
+        }
+      } catch {
+        // no-op
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [answers, selectedExam, view]);
+
+  useEffect(() => {
+    const tryReloadAutoSubmit = async () => {
+      if (!isStudent) return;
+      const examId = localStorage.getItem(ACTIVE_EXAM_KEY);
+      if (!examId) return;
+      const accessToken = getAccessToken();
+      if (!accessToken) return;
+      let persistedAnswers: Record<string, string> = {};
+      try {
+        persistedAnswers = JSON.parse(localStorage.getItem(ACTIVE_ANSWERS_KEY) || "{}") as Record<string, string>;
+      } catch {
+        persistedAnswers = {};
+      }
+      await api(`/api/exams/${examId}/submit`, {
+        method: "POST",
+        accessToken,
+        body: JSON.stringify({ answers: persistedAnswers, auto_submit_reason: "reload" }),
+      });
+      clearActiveAttemptStorage();
+      toast.warning("Exam auto-submitted due to page reload.");
+      await fetchExams();
+    };
+    void tryReloadAutoSubmit();
+  }, [clearActiveAttemptStorage, fetchExams, isStudent]);
+
+  const submitExam = async (reason: "time_up" | "tab_switch" | "reload" | null = null) => {
+    if (!selectedExam || !user || submitting) return;
+    setSubmitting(true);
     const accessToken = getAccessToken();
-    if (!accessToken) { toast.error("Login required"); return; }
-    const res = await api<any>(`/api/exams/${selectedExam.id}/submit`, {
+    if (!accessToken) { toast.error("Login required"); setSubmitting(false); return; }
+    const res = await api<SubmitPayload>(`/api/exams/${selectedExam.id}/submit`, {
       method: "POST",
       accessToken,
-      body: JSON.stringify({ answers }),
+      body: JSON.stringify({ answers, auto_submit_reason: reason }),
     });
-    if (res.status !== 200) { toast.error("Failed to submit"); return; }
-    toast.success(`Submitted! Score: ${res.data?.score ?? 0} (${res.data?.percentage ?? 0}%)`);
-    setView("list");
-    void fetchExams();
+    if (res.status !== 200 || !res.data) {
+      toast.error("Failed to submit");
+      setSubmitting(false);
+      return;
+    }
+    clearMedia();
+    clearActiveAttemptStorage();
+    setResultData(res.data);
+    setView("result");
+    toast.success(`Submitted! Score: ${res.data.score} (${res.data.percentage ?? 0}%)`);
+    await fetchExams();
+    setSubmitting(false);
   };
 
   const deleteQuestion = async (id: string) => {
@@ -215,15 +566,98 @@ export default function Exams() {
   };
 
   const formatTimer = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
+  const attemptedByExam = useMemo(() => new Map(submissions.map((s) => [s.exam_id, s])), [submissions]);
 
-  // ===== ATTEMPT VIEW =====
+  const onAnswerSelect = (questionId: string, option: string) => {
+    const next = { ...answers, [questionId]: option };
+    setAnswers(next);
+    localStorage.setItem(ACTIVE_ANSWERS_KEY, JSON.stringify(next));
+  };
+
   if (view === "attempt" && selectedExam) {
     return (
-      <div className="space-y-6 max-w-3xl mx-auto">
-        <div className="flex items-center justify-between sticky top-0 z-10 bg-background/80 backdrop-blur-xl py-3 -mx-2 px-2 rounded-xl">
-          <h2 className="text-lg font-bold text-foreground">{selectedExam.title}</h2>
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-mono text-sm font-bold ${timeLeft < 60 ? "bg-destructive/10 text-destructive animate-pulse" : "bg-primary/10 text-primary"}`}>
-            <Clock className="w-4 h-4" /> {formatTimer(timeLeft)}
+      <div className="space-y-6 max-w-4xl mx-auto">
+        {alertModal && (
+          <div className="fixed inset-0 z-[90] bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden ${
+                alertModal.type === "error"
+                  ? "border-destructive/45 bg-gradient-to-br from-destructive/20 via-card to-card"
+                  : "border-amber-500/45 bg-gradient-to-br from-amber-500/20 via-card to-card"
+              }`}
+            >
+              <div className="p-5">
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      alertModal.type === "error" ? "bg-destructive/20 text-destructive" : "bg-amber-500/20 text-amber-600"
+                    }`}
+                  >
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className={`text-lg font-extrabold tracking-tight ${alertModal.type === "error" ? "text-destructive" : "text-amber-700"}`}>
+                      {alertModal.type === "error" ? "Critical Warning" : "Tab Switch Warning"}
+                    </h3>
+                    <p className="text-sm text-foreground/90 mt-1 leading-relaxed">{alertModal.text}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-border/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                  Exam integrity rule: 1st tab switch warning, 2nd switch auto-submit.
+                </div>
+
+                <div className="mt-5 flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => setAlertModal(null)}
+                    className="px-3.5 py-2 rounded-lg bg-foreground text-background text-sm font-semibold hover:opacity-90"
+                  >
+                    Continue Exam
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+        {attemptAlert && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
+              attemptAlert.type === "error"
+                ? "bg-destructive/10 border-destructive/40 text-destructive"
+                : "bg-amber-500/10 border-amber-500/40 text-amber-700"
+            }`}
+          >
+            {attemptAlert.text}
+          </motion.div>
+        )}
+        <div className="grid md:grid-cols-[1fr_280px] gap-4">
+          <div className="flex items-center justify-between sticky top-0 z-10 bg-background/80 backdrop-blur-xl py-3 px-3 rounded-xl border border-border/20">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">{selectedExam.title}</h2>
+              <p className="text-xs text-muted-foreground">Stay on this tab. Second tab switch auto-submits.</p>
+            </div>
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-mono text-sm font-bold ${timeLeft < 60 ? "bg-destructive/10 text-destructive animate-pulse" : "bg-primary/10 text-primary"}`}>
+              <Clock className="w-4 h-4" /> {formatTimer(timeLeft)}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border/30 bg-card p-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
+              <Camera className="w-4 h-4 text-primary" /> Live Proctor Camera
+            </div>
+            <video ref={videoRef} autoPlay muted playsInline className="w-full aspect-video rounded-xl object-cover bg-black" />
+            <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
+              <Shield className="w-3.5 h-3.5" />
+              {cameraReady ? "Camera active" : "Camera not active"}
+            </div>
+            <div className="mt-1 text-xs text-amber-600 flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Warning count: {warningCount}/2
+            </div>
           </div>
         </div>
         {questions.map((q, i) => (
@@ -233,7 +667,7 @@ export default function Exams() {
               {(q.options as string[]).map((opt, j) => (
                 <button
                   key={j}
-                  onClick={() => setAnswers({ ...answers, [q.id]: opt })}
+                  onClick={() => onAnswerSelect(q.id, opt)}
                   className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm transition-all ${answers[q.id] === opt ? "bg-primary/10 border-primary text-primary font-medium" : "border-border/20 text-muted-foreground hover:bg-muted/20"}`}
                 >
                   <span className="font-medium mr-2">{String.fromCharCode(65 + j)}.</span> {opt}
@@ -243,60 +677,182 @@ export default function Exams() {
           </motion.div>
         ))}
         <div className="flex gap-3 pb-8">
-          <button onClick={submitExam} className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 transition">Submit Exam</button>
-          <button onClick={() => setView("list")} className="px-6 py-3 rounded-xl bg-muted/30 text-muted-foreground hover:text-foreground transition">Cancel</button>
+          <button disabled={submitting} onClick={() => void submitExam(null)} className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 transition disabled:opacity-50">
+            {submitting ? "Submitting..." : "Submit Exam"}
+          </button>
         </div>
       </div>
     );
   }
 
-  // ===== QUESTIONS VIEW (Teacher) =====
+  if (view === "result" && resultData) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-5">
+        <div className="rounded-2xl border border-border/20 bg-card p-5">
+          <h2 className="text-2xl font-bold text-foreground mb-2">Exam Result</h2>
+          <div className="flex flex-wrap gap-3 text-sm">
+            <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-semibold">Score: {resultData.score}</span>
+            <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 font-semibold">Correct: {resultData.correct_answers}</span>
+            <span className="px-3 py-1 rounded-full bg-destructive/10 text-destructive font-semibold">Wrong: {resultData.wrong_answers}</span>
+            <span className="px-3 py-1 rounded-full bg-muted/30 text-muted-foreground font-semibold">Percentage: {resultData.percentage ?? 0}%</span>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {(resultData.result_breakdown || []).map((item, index) => (
+            <div key={item.question_id} className="rounded-xl border border-border/20 bg-card p-4">
+              <p className="font-semibold text-foreground mb-2">Q{index + 1}. {item.question}</p>
+              <p className={`text-sm ${item.is_correct ? "text-emerald-600" : "text-destructive"}`}>
+                Your answer: {item.selected_answer ?? "Not answered"}
+              </p>
+              {!item.is_correct && (
+                <p className="text-sm text-emerald-600 mt-1">Correct answer: {item.correct_answer}</p>
+              )}
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => { setView("list"); setResultData(null); setSelectedExam(null); }}
+          className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium"
+        >
+          Back to Exams
+        </button>
+      </div>
+    );
+  }
+
   if (view === "questions" && selectedExam) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-foreground">{selectedExam.title} - Questions</h2>
-            <p className="text-sm text-muted-foreground">{questions.length} questions added</p>
+            <p className="text-sm text-muted-foreground">{questions.length}/5 questions added</p>
           </div>
           <div className="flex gap-2">
-            {selectedExam.status === "draft" && questions.length > 0 && (
+            {selectedExam.status === "draft" && questions.length === 5 && (
               <button onClick={() => handlePublish(selectedExam.id)} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-sm font-medium hover:opacity-90">Publish</button>
             )}
             <button onClick={() => { setView("list"); setSelectedExam(null); }} className="px-4 py-2 rounded-xl bg-muted/30 text-muted-foreground text-sm hover:text-foreground">Back</button>
           </div>
         </div>
 
-        {/* Add question form */}
         <div className="bg-card border border-border/20 rounded-2xl p-5 space-y-4">
-          <h3 className="font-semibold text-foreground">Add Question</h3>
-          <textarea value={qForm.question_text} onChange={e => setQForm({ ...qForm, question_text: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground min-h-[60px]" placeholder="Enter question..." />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {qForm.options.map((opt, i) => (
-              <input key={i} value={opt} onChange={e => { const o = [...qForm.options]; o[i] = e.target.value; setQForm({ ...qForm, options: o }); }} className="px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" placeholder={`Option ${String.fromCharCode(65 + i)}`} />
-            ))}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setQuestionMode("manual")}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${questionMode === "manual" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:text-foreground"}`}
+            >
+              Manual Question Creation
+            </button>
+            <button
+              onClick={() => setQuestionMode("ai")}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${questionMode === "ai" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:text-foreground"}`}
+            >
+              AI Generated Questions
+            </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Correct Answer *</label>
-              <select value={qForm.correct_answer} onChange={e => setQForm({ ...qForm, correct_answer: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground">
-                <option value="">Select correct option</option>
-                {qForm.options.filter(o => o.trim()).map((opt, i) => <option key={i} value={opt}>{String.fromCharCode(65 + i)}. {opt}</option>)}
-              </select>
+
+          {questionMode === "manual" ? (
+            <>
+              <h3 className="font-semibold text-foreground">Add Question</h3>
+              <textarea disabled={questions.length >= 5} value={qForm.question} onChange={e => setQForm({ ...qForm, question: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground min-h-[60px]" placeholder="Enter question..." />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {qForm.options.map((opt, i) => (
+                  <input disabled={questions.length >= 5} key={i} value={opt} onChange={e => { const o = [...qForm.options]; o[i] = e.target.value; setQForm({ ...qForm, options: o }); }} className="px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" placeholder={`Option ${String.fromCharCode(65 + i)}`} />
+                ))}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Correct Answer *</label>
+                  <select disabled={questions.length >= 5} value={qForm.correct_answer} onChange={e => setQForm({ ...qForm, correct_answer: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground">
+                    <option value="">Select correct option</option>
+                    {qForm.options.filter(o => o.trim()).map((opt, i) => <option key={i} value={opt}>{String.fromCharCode(65 + i)}. {opt}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Marks</label>
+                  <input type="number" value={qForm.marks} onChange={e => setQForm({ ...qForm, marks: parseInt(e.target.value) || 1 })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" />
+                </div>
+              </div>
+              <button disabled={questions.length >= 5} onClick={handleAddQuestion} className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40">Add Question</button>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  value={aiTopic}
+                  onChange={(e) => setAiTopic(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground"
+                  placeholder='Enter topic (e.g., "HTML")'
+                />
+                <button onClick={generateAiQuestions} disabled={aiLoading} className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60 flex items-center gap-2">
+                  {aiLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                  {aiLoading ? "Generating..." : "Generate 10 MCQs"}
+                </button>
+              </div>
+
+              {aiDrafts.length > 0 && (
+                <>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{aiDrafts.filter((q) => q.selected).length} selected</span>
+                    <button onClick={() => void addSelectedAiQuestionsToExam()} disabled={questions.length >= 5} className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white font-medium disabled:opacity-50">
+                      Add Selected to Exam
+                    </button>
+                  </div>
+                  <div className="space-y-3 max-h-[440px] overflow-auto pr-1">
+                    {aiDrafts.map((draft, idx) => (
+                      <div key={draft.localId} className="rounded-xl border border-border/20 p-3 bg-background/50 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                            <input type="checkbox" checked={draft.selected} onChange={() => toggleAiSelection(draft.localId)} />
+                            Q{idx + 1}
+                          </label>
+                        </div>
+                        <textarea
+                          value={draft.question}
+                          onChange={(e) => updateAiDraft(draft.localId, { question: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg border border-border/20 bg-background text-sm text-foreground min-h-[52px]"
+                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {draft.options.map((opt, i) => (
+                            <input
+                              key={i}
+                              value={opt}
+                              onChange={(e) => {
+                                const next = [...draft.options];
+                                next[i] = e.target.value;
+                                updateAiDraft(draft.localId, { options: next });
+                              }}
+                              className="px-3 py-2 rounded-lg border border-border/20 bg-background text-sm text-foreground"
+                              placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                            />
+                          ))}
+                        </div>
+                        <select
+                          value={draft.correct_answer}
+                          onChange={(e) => updateAiDraft(draft.localId, { correct_answer: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg border border-border/20 bg-background text-sm text-foreground"
+                        >
+                          <option value="">Select correct answer</option>
+                          {draft.options.filter((o) => o.trim()).map((opt, i) => (
+                            <option key={i} value={opt}>{String.fromCharCode(65 + i)}. {opt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Marks</label>
-              <input type="number" value={qForm.marks} onChange={e => setQForm({ ...qForm, marks: parseInt(e.target.value) || 1 })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" />
-            </div>
-          </div>
-          <button onClick={handleAddQuestion} className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">Add Question</button>
+          )}
+          {questions.length >= 5 && <p className="text-xs text-emerald-600">5 questions completed. You can publish now.</p>}
         </div>
 
         {/* Questions list */}
         {questions.map((q, i) => (
           <div key={q.id} className="bg-card/50 border border-border/10 rounded-xl p-4 flex items-start justify-between gap-3">
             <div className="flex-1">
-              <p className="text-sm font-medium text-foreground"><span className="text-primary">Q{i + 1}.</span> {q.question_text}</p>
+              <p className="text-sm font-medium text-foreground"><span className="text-primary">Q{i + 1}.</span> {q.question}</p>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {(q.options as string[]).map((opt, j) => (
                   <span key={j} className={`text-xs px-2 py-0.5 rounded-full ${opt === q.correct_answer ? "bg-emerald-500/10 text-emerald-600 font-medium" : "bg-muted/30 text-muted-foreground"}`}>
@@ -328,10 +884,6 @@ export default function Exams() {
             <label className="text-xs text-muted-foreground mb-1 block">Title *</label>
             <input value={examForm.title} onChange={e => setExamForm({ ...examForm, title: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" placeholder="Mid-term Quiz" />
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Description</label>
-            <textarea value={examForm.description} onChange={e => setExamForm({ ...examForm, description: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground min-h-[60px]" placeholder="Brief description..." />
-          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Type</label>
@@ -344,22 +896,57 @@ export default function Exams() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Batch</label>
-              <input value={examForm.batch} onChange={e => setExamForm({ ...examForm, batch: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" placeholder="A" />
+              <select value={examForm.batch} onChange={e => setExamForm({ ...examForm, batch: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground">
+                <option value="">Select Batch</option>
+                {/* This will be populated with actual batches from backend */}
+                <option value="2021">2021</option>
+                <option value="2022">2022</option>
+                <option value="2023">2023</option>
+              </select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Duration (minutes)</label>
-              <input type="number" value={examForm.duration_minutes} onChange={e => setExamForm({ ...examForm, duration_minutes: parseInt(e.target.value) || 30 })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" />
+              <input type="number" value={examForm.duration_minutes} onChange={e => setExamForm({ ...examForm, duration_minutes: parseInt(e.target.value) || 10 })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">📅 Due Date</label>
+              <input 
+                type="date" 
+                value={examForm.due_date instanceof Date ? examForm.due_date.toISOString().split('T')[0] : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                onChange={e => setExamForm({ ...examForm, due_date: new Date(e.target.value) })} 
+                className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" 
+              />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Total Marks</label>
-              <input type="number" value={examForm.total_marks} onChange={e => setExamForm({ ...examForm, total_marks: parseInt(e.target.value) || 100 })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" />
+              <label className="text-xs text-muted-foreground mb-1 block">⏰ Due Time</label>
+              <input 
+                type="time" 
+                value={examForm.due_time}
+                onChange={e => setExamForm({ ...examForm, due_time: e.target.value })} 
+                className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" 
+              />
             </div>
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Scheduled At</label>
-            <input type="datetime-local" value={examForm.scheduled_at} onChange={e => setExamForm({ ...examForm, scheduled_at: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" />
+          <div className="text-xs text-muted-foreground rounded-xl border border-primary/20 p-3 bg-primary/5">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="w-4 h-4 text-primary" />
+              <span className="font-semibold text-primary">Deadline Preview</span>
+            </div>
+            <p>
+              Students must complete before: <span className="font-mono text-foreground">
+                {examForm.due_date instanceof Date ? examForm.due_date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Select date'} at {examForm.due_time || "23:59"}
+              </span>
+            </p>
+            <p className="mt-1">
+              After deadline: <span className="text-violet-600 font-medium">Practice Mode Available</span>
+            </p>
           </div>
-          <button onClick={handleCreateExam} className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90">Create & Add Questions</button>
+          <div className="text-xs text-muted-foreground rounded-xl border border-border/20 p-3 bg-muted/20">
+            This exam template is locked to <span className="font-semibold text-foreground">5 MCQs</span>, each with <span className="font-semibold text-foreground">4 options</span> and one correct answer.
+          </div>
+          <button onClick={handleCreateExam} className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90">Create & Add 5 Questions</button>
         </div>
       </div>
     );
@@ -403,7 +990,6 @@ export default function Exams() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="font-semibold text-foreground">{exam.title}</h3>
-                    {exam.description && <p className="text-xs text-muted-foreground mt-0.5">{exam.description}</p>}
                   </div>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${exam.status === "published" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"}`}>
                     {exam.status}
@@ -413,11 +999,62 @@ export default function Exams() {
                 <div className="flex flex-wrap gap-2 mb-4 text-xs text-muted-foreground">
                   <span>📚 {exam.exam_type}</span>
                   <span>⏱ {exam.duration_minutes} min</span>
-                  <span>📊 {exam.total_marks} marks</span>
+                  <span>📊 5 marks</span>
                   <span>❓ {exam.question_count} Qs</span>
                   {exam.batch && <span>🏷 Batch {exam.batch}</span>}
-                  {exam.teacher_name && <span>👨‍🏫 {exam.teacher_name}</span>}
                 </div>
+
+                {/* Deadline and Time Remaining */}
+                {exam.due_date ? (
+                  <div className="mb-4 space-y-2">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="w-3 h-3" />
+                      <span>Deadline: {format(new Date(exam.due_date), "PPp")}</span>
+                    </div>
+                    {(() => {
+                      const now = new Date();
+                      const due = new Date(exam.due_date);
+                      const diff = due.getTime() - now.getTime();
+                      
+                      if (diff <= 0) {
+                        return (
+                          <div className="flex items-center gap-1.5 text-xs text-violet-600 font-medium">
+                            <Clock className="w-3 h-3" />
+                            <span>Practice Mode Available</span>
+                          </div>
+                        );
+                      }
+                      
+                      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                      
+                      let timeText = "";
+                      if (days > 0) {
+                        timeText = `${days}d ${hours}h ${minutes}m remaining`;
+                      } else if (hours > 0) {
+                        timeText = `${hours}h ${minutes}m remaining`;
+                      } else {
+                        timeText = `${minutes}m remaining`;
+                      }
+                      
+                      const isUrgent = days === 0 && hours < 2;
+                      return (
+                        <div className={`flex items-center gap-1.5 text-xs font-medium ${isUrgent ? "text-warning" : "text-primary"}`}>
+                          <Clock className="w-3 h-3" />
+                          <span>{timeText}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Calendar className="w-3 h-3" />
+                      <span>No deadline set</span>
+                    </div>
+                  </div>
+                )}
 
                 {isStudent && exam.status === "published" && (
                   attempted ? (
@@ -434,7 +1071,7 @@ export default function Exams() {
 
                 {(isTeacher || isAdmin) && (
                   <div className="flex gap-2">
-                    <button onClick={() => { setSelectedExam(exam); fetchQuestions(exam.id); setView("questions"); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-muted-foreground text-xs hover:text-foreground">
+                    <button onClick={() => { setSelectedExam(exam); setQuestionMode("manual"); setAiDrafts([]); setAiTopic(""); fetchQuestions(exam.id); setView("questions"); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-muted-foreground text-xs hover:text-foreground">
                       <Eye className="w-3.5 h-3.5" /> Questions
                     </button>
                     {exam.status === "draft" && (
