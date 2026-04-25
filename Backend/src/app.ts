@@ -82,7 +82,11 @@ app.use(
     secret: env.sessionSecret,
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false, sameSite: 'lax' },
+    cookie: { 
+      secure: env.nodeEnv === 'production', 
+      sameSite: env.nodeEnv === 'production' ? 'none' : 'lax',
+      httpOnly: true
+    },
   }) as any
 );
 app.use(passport.initialize());
