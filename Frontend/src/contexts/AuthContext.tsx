@@ -57,11 +57,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const p = profileRes.data;
     if (p?.avatar_url && typeof p.avatar_url === "string") {
+      // If backend sends absolute localhost URL, replace it with current API_BASE
+      if (p.avatar_url.startsWith("http://localhost")) {
+        const relativePath = p.avatar_url.replace(/^http:\/\/localhost:\d+/, '');
+        p.avatar_url = `${API_BASE}${relativePath}`;
+      }
       // Backend returns relative URLs like `/api/files/<id>`
-      if (p.avatar_url.startsWith("/")) {
+      else if (p.avatar_url.startsWith("/")) {
         p.avatar_url = `${API_BASE}${p.avatar_url}`;
       }
-      console.log("AuthContext - Processed avatar URL:", p.avatar_url);
     } else {
       console.log("AuthContext - No avatar URL found in profile");
     }
