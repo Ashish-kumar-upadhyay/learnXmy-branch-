@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   GraduationCap, Mail, Phone, MapPin, Send, Sparkles,
-  MessageCircle, Zap, Star, CheckCircle, Loader2, MessageSquare 
+  MessageCircle, Zap, Star, CheckCircle, Loader2, MessageSquare, Menu, Moon, Sun, X
 } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
 import { toast } from "sonner";
 import { API_BASE, getApiErrorMessage } from "@/lib/backendApi";
 
@@ -19,6 +18,26 @@ export default function Contact() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [activeTheme, setActiveTheme] = useState("default");
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
+  const [darkMode, setDarkMode] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const navItems = useMemo(
+    () => [
+      { label: "Home", href: "/" },
+      { label: "Features", href: "/features" },
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "/contact" },
+    ],
+    [],
+  );
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
 
   const themes = {
     default: {
@@ -93,9 +112,6 @@ export default function Contact() {
 
   return (
     <div className={`min-h-screen ${currentTheme.bgGradient} relative overflow-hidden`}>
-      <div className="fixed top-4 right-4 z-50">
-        <ThemeToggle />
-      </div>
 
       {/* Animated Background Elements */}
       <motion.div
@@ -118,6 +134,58 @@ export default function Contact() {
       />
 
       <div className="relative z-10 container mx-auto px-6 md:px-16 py-6">
+        {/* Glassmorphism Navigation */}
+        <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4 sm:px-6">
+          <div className="mx-auto flex max-w-7xl items-center justify-between rounded-3xl px-4 py-3 border border-white/60 bg-white/70 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06] dark:shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:px-6">
+            <Link to="/" className="flex items-center gap-3" aria-label="LearnX home">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+                <GraduationCap className="h-5 w-5" />
+              </span>
+              <span className="text-lg font-bold tracking-tight">LearnX</span>
+            </Link>
+
+            <nav className="hidden items-center gap-7 text-sm font-medium text-slate-600 dark:text-slate-300 md:flex">
+              {navItems.map((item) => (
+                <Link key={item.href} to={item.href} className="transition hover:text-blue-600 dark:hover:text-cyan-300">
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setDarkMode((value) => !value)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/70 text-slate-700 transition hover:-translate-y-0.5 hover:shadow-lg dark:border-white/10 dark:bg-white/10 dark:text-slate-200"
+                aria-label="Toggle dark mode"
+              >
+                {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen((value) => !value)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/70 md:hidden dark:border-white/10 dark:bg-white/10"
+                aria-label="Toggle menu"
+              >
+                {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            </div>
+          </div>
+          {isMenuOpen && (
+            <div className="mx-auto mt-3 flex max-w-7xl flex-col gap-2 rounded-3xl border border-white/60 bg-white/70 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06] dark:shadow-[0_24px_80px_rgba(0,0,0,0.35)] p-3 md:hidden">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </header>
         {/* Theme Customization Panel */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -142,54 +210,6 @@ export default function Contact() {
           </div>
         </motion.div>
 
-        <nav className="mb-12 flex items-center justify-between">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Link to="/auth" className="flex items-center gap-2.5 group">
-              <motion.div
-                className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md"
-                style={{ background: currentTheme.primary }}
-                whileHover={{ scale: 1.05, rotate: 5 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <GraduationCap className="w-5 h-5 text-white" />
-              </motion.div>
-              <span className="text-xl font-bold text-foreground tracking-tight group-hover:text-primary transition-colors">
-                LearnX
-              </span>
-            </Link>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="hidden md:flex items-center gap-8"
-          >
-            {[
-              { label: "Features", to: "/features" },
-              { label: "About", to: "/about" },
-              { label: "Contact", to: "/contact" }
-            ].map((item, idx) => (
-              <Link
-                key={item.label}
-                to={item.to}
-                className={`text-sm transition-all hover:scale-105 ${
-                  item.label === "Contact" 
-                    ? "font-semibold" 
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                style={{
-                  color: item.label === "Contact" ? currentTheme.primary : undefined
-                }}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </motion.div>
-        </nav>
 
         {/* Hero Section */}
         <motion.section

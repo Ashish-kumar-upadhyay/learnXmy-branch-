@@ -35,9 +35,14 @@ export default function Profile() {
         // If it's already a full URL, use it as-is
         if (avatar.startsWith("http")) {
           setAvatarUrl(avatar);
+        } else if (avatar.startsWith("/api/files/")) {
+          // If it's already a proper API path, construct full URL
+          setAvatarUrl(`${API_BASE}${avatar}`);
         } else {
-          console.log("Avatar URL from profile:", avatar);
-          setAvatarUrl(avatar);
+          // If it's just a file ID, construct the proper files API URL
+          const fileUrl = `${API_BASE}/api/files/${avatar}`;
+          console.log("Constructed avatar URL:", fileUrl);
+          setAvatarUrl(fileUrl);
         }
       } else {
         setAvatarUrl(null);
@@ -52,10 +57,17 @@ export default function Profile() {
       const avatar = profile.avatar_url;
       console.log("Profile update useEffect - avatar from backend:", avatar);
       if (avatar && typeof avatar === "string") {
+        // If it's already a full URL, use it as-is
         if (avatar.startsWith("http")) {
           setAvatarUrl(avatar);
+        } else if (avatar.startsWith("/api/files/")) {
+          // If it's already a proper API path, construct full URL
+          setAvatarUrl(`${API_BASE}${avatar}`);
         } else {
-          setAvatarUrl(avatar);
+          // If it's just a file ID, construct the proper files API URL
+          const fileUrl = `${API_BASE}/api/files/${avatar}`;
+          console.log("Constructed avatar URL (update):", fileUrl);
+          setAvatarUrl(fileUrl);
         }
       } else {
         setAvatarUrl(null);
@@ -95,7 +107,17 @@ export default function Profile() {
     console.log("Upload response:", json);
     console.log("New avatar URL:", newUrl);
     // Ensure the URL is properly formatted
-    const absUrl = newUrl ? (newUrl.startsWith("http") ? newUrl : `${API_BASE}${newUrl}`) : null;
+    let absUrl = null;
+    if (newUrl) {
+      if (newUrl.startsWith("http")) {
+        absUrl = newUrl;
+      } else if (newUrl.startsWith("/api/files/")) {
+        absUrl = `${API_BASE}${newUrl}`;
+      } else {
+        // If it's just a file ID, construct the proper files API URL
+        absUrl = `${API_BASE}/api/files/${newUrl}`;
+      }
+    }
     console.log("Formatted avatar URL:", absUrl);
     
     // Update local state immediately with cache-busting
@@ -262,11 +284,7 @@ export default function Profile() {
           <label className={labelClass}><User className="w-3 h-3 inline mr-1" />Full Name</label>
           <input className={inputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" maxLength={100} />
         </div>
-        <div>
-          <label className={labelClass}><BookOpen className="w-3 h-3 inline mr-1" />Batch</label>
-          <input className={inputClass} value={className} onChange={(e) => setClassName(e.target.value)} placeholder="e.g. CS-2026" maxLength={50} />
-        </div>
-        <button onClick={handleSave} disabled={saving} className="w-full py-3 rounded-xl font-semibold text-sm btn-premium flex items-center justify-center gap-2 disabled:opacity-50">
+                <button onClick={handleSave} disabled={saving} className="w-full py-3 rounded-xl font-semibold text-sm btn-premium flex items-center justify-center gap-2 disabled:opacity-50">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? "Saving..." : "Save Changes"}
         </button>

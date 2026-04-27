@@ -153,114 +153,40 @@ export default function Index() {
   if (isLoading) {
     return (
       <motion.div variants={container} initial="hidden" animate="show" className="space-y-7">
-        {/* Header Skeleton */}
-        <motion.div variants={item} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="h-10 w-64 bg-gradient-to-r from-muted/50 to-muted rounded-lg animate-pulse" />
-            <div className="h-5 w-96 bg-gradient-to-r from-muted/30 to-muted/20 rounded-lg animate-pulse" />
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card p-12 text-center"
+        >
+          <div className="flex flex-col items-center gap-6">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary"
+            />
+            <div className="space-y-3">
+              <h3 className="text-2xl font-bold text-foreground">Loading Your Dashboard</h3>
+              <p className="text-muted-foreground">Fetching your learning progress and activities...</p>
+              <div className="flex justify-center gap-2 mt-4">
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 0.8, repeat: Infinity, delay: 0 }}
+                  className="w-3 h-3 rounded-full bg-primary"
+                />
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 0.8, repeat: Infinity, delay: 0.2 }}
+                  className="w-3 h-3 rounded-full bg-primary"
+                />
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 0.8, repeat: Infinity, delay: 0.4 }}
+                  className="w-3 h-3 rounded-full bg-primary"
+                />
+              </div>
+            </div>
           </div>
-          <div className="h-10 w-24 bg-gradient-to-r from-muted/50 to-muted rounded-2xl animate-pulse" />
         </motion.div>
-
-        {/* Stats Cards Skeleton */}
-        <motion.div variants={item} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-gradient-to-br from-muted/50 to-muted/30 border border-border/20 rounded-2xl p-5 backdrop-blur-sm">
-              <div className="space-y-3">
-                <div className="h-4 w-20 bg-gradient-to-r from-muted/40 to-muted/20 rounded animate-pulse" />
-                <div className="h-8 w-16 bg-gradient-to-r from-muted/50 to-muted/30 rounded animate-pulse" />
-                <div className="h-3 w-24 bg-gradient-to-r from-muted/30 to-muted/20 rounded animate-pulse" />
-              </div>
-            </div>
-          ))}
-        </motion.div>
-
-        {/* Main Grid Skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Chart Skeleton */}
-          <div className="lg:col-span-2 bg-gradient-to-br from-muted/50 to-muted/30 border border-border/20 rounded-2xl p-6 backdrop-blur-sm">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <div className="h-6 w-32 bg-gradient-to-r from-muted/40 to-muted/20 rounded animate-pulse" />
-                  <div className="h-4 w-40 bg-gradient-to-r from-muted/30 to-muted/20 rounded animate-pulse" />
-                </div>
-                <div className="h-6 w-24 bg-gradient-to-r from-muted/30 to-muted/20 rounded-xl animate-pulse" />
-              </div>
-              <div className="h-48 bg-gradient-to-r from-muted/20 to-muted/10 rounded-xl animate-pulse" />
-            </div>
-          </div>
-
-          {/* Progress Rings Skeleton */}
-          <div className="bg-gradient-to-br from-muted/50 to-muted/30 border border-border/20 rounded-2xl p-6 backdrop-blur-sm">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="h-6 w-32 bg-gradient-to-r from-muted/40 to-muted/20 rounded animate-pulse" />
-                <div className="h-4 w-40 bg-gradient-to-r from-muted/30 to-muted/20 rounded animate-pulse" />
-              </div>
-              <div className="flex flex-col items-center gap-5">
-                <div className="w-24 h-24 bg-gradient-to-r from-muted/30 to-muted/20 rounded-full animate-pulse" />
-                <div className="grid grid-cols-2 gap-4 w-full">
-                  <div className="w-16 h-16 bg-gradient-to-r from-muted/30 to-muted/20 rounded-full animate-pulse" />
-                  <div className="w-16 h-16 bg-gradient-to-r from-muted/30 to-muted/20 rounded-full animate-pulse" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Grid Skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-          {/* Classes Skeleton */}
-          <div className="lg:col-span-2 bg-gradient-to-br from-muted/50 to-muted/30 border border-border/20 rounded-2xl p-6 backdrop-blur-sm">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <div className="h-6 w-28 bg-gradient-to-r from-muted/40 to-muted/20 rounded animate-pulse" />
-                  <div className="h-4 w-36 bg-gradient-to-r from-muted/30 to-muted/20 rounded animate-pulse" />
-                </div>
-                <div className="h-4 w-16 bg-gradient-to-r from-muted/30 to-muted/20 rounded animate-pulse" />
-              </div>
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-muted/30 to-muted/20">
-                    <div className="w-10 h-10 bg-gradient-to-r from-muted/40 to-muted/20 rounded-xl animate-pulse" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 w-3/4 bg-gradient-to-r from-muted/30 to-muted/20 rounded animate-pulse" />
-                      <div className="h-3 w-1/2 bg-gradient-to-r from-muted/20 to-muted/10 rounded animate-pulse" />
-                    </div>
-                    <div className="h-6 w-16 bg-gradient-to-r from-muted/30 to-muted/20 rounded-full animate-pulse" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Sprint Plan Skeleton */}
-          <div className="lg:col-span-3 bg-gradient-to-br from-muted/50 to-muted/30 border border-border/20 rounded-2xl p-6 backdrop-blur-sm">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <div className="h-6 w-24 bg-gradient-to-r from-muted/40 to-muted/20 rounded animate-pulse" />
-                  <div className="h-4 w-32 bg-gradient-to-r from-muted/30 to-muted/20 rounded animate-pulse" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-24 bg-gradient-to-r from-muted/40 to-muted/20 rounded-full animate-pulse" />
-                  <div className="h-4 w-8 bg-gradient-to-r from-muted/30 to-muted/20 rounded animate-pulse" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex items-center gap-3 px-3.5 py-3 rounded-xl bg-gradient-to-r from-muted/30 to-muted/20">
-                    <div className="w-4 h-4 bg-gradient-to-r from-muted/40 to-muted/20 rounded-full animate-pulse" />
-                    <div className="flex-1 h-4 bg-gradient-to-r from-muted/30 to-muted/20 rounded animate-pulse" />
-                    <div className="h-5 w-16 bg-gradient-to-r from-muted/30 to-muted/20 rounded-lg animate-pulse" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
       </motion.div>
     );
   }

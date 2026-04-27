@@ -1,8 +1,7 @@
-import { useRef, useState } from "react";
+ import { useRef, useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { GraduationCap, Users, BookOpen, Shield, ArrowRight, Sparkles, Zap, TrendingUp, X } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
+import { GraduationCap, Users, BookOpen, Shield, ArrowRight, Sparkles, Zap, TrendingUp, X, Clock, Award, Menu, Moon, Sun } from "lucide-react";
 
 const studentHero = "/stundets.png";
 
@@ -43,101 +42,92 @@ export default function RoleSelect() {
   const navigate = useNavigate();
   const roleRef = useRef<HTMLDivElement>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+
+  const navItems = useMemo(
+    () => [
+      { label: "Home", href: "/" },
+      { label: "Features", href: "/features" },
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "/contact" },
+    ],
+    [],
+  );
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
 
   return (
-    <div className="h-dvh bg-gradient-to-br from-[#f7f9fc] via-background to-[#eef4ff] dark:from-[#0b1220] dark:via-[#0f172a] dark:to-[#111827] relative overflow-hidden flex flex-col">
-      <div className="fixed top-4 right-4 z-50 hidden md:block">
-        <ThemeToggle />
-      </div>
+    <div className="h-dvh bg-gradient-to-br from-[#f7f9fc] via-background to-[#eef4ff] dark:from-[#0a0a0a] dark:via-[#1a1a1a] dark:to-[#2a2a2a] relative overflow-hidden flex flex-col">
 
-      <div className="absolute top-[-10%] right-[-5%] w-[400px] h-[400px] bg-primary/5 dark:bg-primary/15 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[-5%] w-[300px] h-[300px] bg-violet-400/10 dark:bg-violet-500/20 rounded-full blur-[80px] pointer-events-none" />
-      <div className="absolute top-[20%] right-[25%] w-3 h-3 bg-primary/30 rounded-full animate-pulse pointer-events-none" />
-      <div className="absolute top-[15%] right-[15%] w-2 h-2 bg-primary/20 rounded-full animate-pulse pointer-events-none" style={{ animationDelay: "1s" }} />
-      <div className="absolute top-[40%] right-[8%] w-2 h-2 bg-primary/25 rounded-full animate-pulse pointer-events-none" style={{ animationDelay: "2s" }} />
-      <div className="absolute bottom-[40%] left-[10%] w-2 h-2 bg-primary/20 rounded-full animate-pulse pointer-events-none" style={{ animationDelay: "0.5s" }} />
+      <div className="absolute top-[-10%] right-[-5%] w-[400px] h-[400px] bg-primary/5 dark:bg-blue-500/20 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-5%] w-[300px] h-[300px] bg-violet-400/10 dark:bg-purple-500/25 rounded-full blur-[80px] pointer-events-none" />
+      <div className="absolute top-[20%] right-[25%] w-3 h-3 bg-primary/30 dark:bg-cyan-400/40 rounded-full animate-pulse pointer-events-none" />
+      <div className="absolute top-[15%] right-[15%] w-2 h-2 bg-primary/20 dark:bg-blue-400/35 rounded-full animate-pulse pointer-events-none" style={{ animationDelay: "1s" }} />
+      <div className="absolute top-[40%] right-[8%] w-2 h-2 bg-primary/25 dark:bg-purple-400/30 rounded-full animate-pulse pointer-events-none" style={{ animationDelay: "2s" }} />
+      <div className="absolute bottom-[40%] left-[10%] w-2 h-2 bg-primary/20 dark:bg-cyan-400/25 rounded-full animate-pulse pointer-events-none" style={{ animationDelay: "0.5s" }} />
 
       <section className="relative z-10 flex-1 flex flex-col overflow-hidden">
         <div className="container mx-auto px-6 md:px-16 flex-1 flex flex-col justify-end pb-2 md:pb-4 relative">
-          <nav className="absolute left-6 right-6 top-3 z-30 flex items-center justify-between md:left-16 md:right-16 md:top-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-md">
-                <GraduationCap className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold text-foreground tracking-tight">LearnX</span>
-            </div>
-            {/* Mobile navbar items */}
-            <div className="flex md:hidden items-center gap-3">
-              <ThemeToggle />
-              <button 
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="flex flex-col justify-center items-center gap-1 w-7 h-7 relative z-50 p-1 rounded-lg hover:bg-muted/50 dark:hover:bg-white/10 transition-colors"
-              >
-                {isMenuOpen ? (
-                  <X className="w-5 h-5 text-foreground" />
-                ) : (
-                  <>
-                    <div className="w-5 h-0.5 bg-foreground rounded-full transition-all"></div>
-                    <div className="w-5 h-0.5 bg-foreground rounded-full transition-all"></div>
-                    <div className="w-5 h-0.5 bg-foreground rounded-full transition-all"></div>
-                  </>
-                )}
-              </button>
-            </div>
-            <div className="hidden md:flex items-center gap-8">
-              {[
-                { label: "Features", to: "/features" },
-                { label: "About", to: "/about" },
-                { label: "Contact", to: "/contact" },
-              ].map((item) => (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  className="text-sm text-muted-foreground hover:text-foreground dark:hover:text-slate-100 transition-colors"
+          {/* Glassmorphism Navigation */}
+          <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4 sm:px-6">
+            <div className="mx-auto flex max-w-7xl items-center justify-between rounded-3xl px-4 py-3 border border-white/60 bg-white/70 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06] dark:shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:px-6">
+              <Link to="/" className="flex items-center gap-3" aria-label="LearnX home">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+                  <GraduationCap className="h-5 w-5" />
+                </span>
+                <span className="text-lg font-bold tracking-tight">LearnX</span>
+              </Link>
+
+              <nav className="hidden items-center gap-7 text-sm font-medium text-slate-600 dark:text-slate-300 md:flex">
+                {navItems.map((item) => (
+                  <Link key={item.href} to={item.href} className="transition hover:text-blue-600 dark:hover:text-cyan-300">
+                    {item.label}
+                  </Link>
+                ))}
+              </nav>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDarkMode((value) => !value)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/70 text-slate-700 transition hover:-translate-y-0.5 hover:shadow-lg dark:border-white/10 dark:bg-white/10 dark:text-slate-200"
+                  aria-label="Toggle dark mode"
                 >
-                  {item.label}
-                </Link>
-              ))}
+                  {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMenuOpen((value) => !value)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/70 md:hidden dark:border-white/10 dark:bg-white/10"
+                  aria-label="Toggle menu"
+                >
+                  {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
-          </nav>
-
-          {/* Mobile Dropdown Menu */}
-          <AnimatePresence>
             {isMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="md:hidden absolute top-16 right-6 z-40 bg-white/98 dark:bg-[#111827]/98 backdrop-blur-md border border-border/60 dark:border-white/15 rounded-xl shadow-xl min-w-[160px]"
-              >
-                <div className="py-1">
+              <div className="mx-auto mt-3 flex max-w-7xl flex-col gap-2 rounded-3xl border border-white/60 bg-white/70 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06] dark:shadow-[0_24px_80px_rgba(0,0,0,0.35)] p-3 md:hidden">
+                {navItems.map((item) => (
                   <Link
-                    to="/features"
+                    key={item.href}
+                    to={item.href}
                     onClick={() => setIsMenuOpen(false)}
-                    className="block px-4 py-2.5 text-sm font-medium text-foreground dark:text-slate-100 hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors rounded-lg mx-1"
+                    className="rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
                   >
-                    Features
+                    {item.label}
                   </Link>
-                  <Link
-                    to="/about"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block px-4 py-2.5 text-sm font-medium text-foreground dark:text-slate-100 hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors rounded-lg mx-1"
-                  >
-                    About
-                  </Link>
-                  <Link
-                    to="/contact"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block px-4 py-2.5 text-sm font-medium text-foreground dark:text-slate-100 hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors rounded-lg mx-1"
-                  >
-                    Contact
-                  </Link>
-                </div>
-              </motion.div>
+                ))}
+              </div>
             )}
-          </AnimatePresence>
+          </header>
 
+          
           {/* Mobile layout - Text first, then image */}
           <div className="md:hidden flex flex-col items-center relative mt-12">
             {/* Text content on top for mobile */}
@@ -149,15 +139,15 @@ export default function RoleSelect() {
                 </span>
               </div>
 
-              <h1 className="text-2xl font-extrabold text-foreground dark:text-slate-100 leading-[1.08] mb-1.5 tracking-tight">
+              <h1 className="text-2xl font-extrabold text-foreground dark:text-white leading-[1.08] mb-1.5 tracking-tight">
                 Smart Learning
                 <br />
-                <span className="bg-gradient-to-r from-foreground to-muted-foreground dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-foreground to-muted-foreground dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
                   Platform
                 </span>
               </h1>
 
-              <p className="text-muted-foreground dark:text-slate-300 text-[10px] leading-relaxed mb-3 max-w-sm mx-auto">
+              <p className="text-muted-foreground dark:text-gray-300 text-[10px] leading-relaxed mb-3 max-w-sm mx-auto">
                 Revolutionize education with our intelligent tools for students, teachers, and administrators.
               </p>
 
@@ -208,6 +198,32 @@ export default function RoleSelect() {
                 </div>
               </div>
 
+              {/* Mobile 24/7 Support badge */}
+              <div className="absolute left-[-60px] bottom-[60px] z-20 rounded-xl border border-border/60 dark:border-white/15 bg-white/90 dark:bg-[#111827]/90 px-2 py-1 shadow-lg backdrop-blur-md animate-float" style={{ animationDelay: "2s" }}>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white">
+                    <Clock className="h-3.5 w-3.5" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold text-foreground dark:text-slate-100 leading-none">24/7</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground dark:text-slate-300 leading-none">Support</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Expert Teachers badge */}
+              <div className="absolute right-[-60px] top-[40px] z-20 rounded-xl border border-border/60 dark:border-white/15 bg-white/90 dark:bg-[#111827]/90 px-2 py-1 shadow-lg backdrop-blur-md animate-float" style={{ animationDelay: "3s" }}>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-600 text-white">
+                    <Award className="h-3.5 w-3.5" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold text-foreground dark:text-slate-100 leading-none">Expert</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground dark:text-slate-300 leading-none">Teachers</p>
+                  </div>
+                </div>
+              </div>
+
               <img
                 src={studentHero}
                 alt="Student with books"
@@ -228,15 +244,15 @@ export default function RoleSelect() {
                 </span>
               </div>
 
-              <h1 className="text-5xl font-extrabold text-foreground dark:text-slate-100 leading-[1.08] mb-4 tracking-tight">
+              <h1 className="text-5xl font-extrabold text-foreground dark:text-white leading-[1.08] mb-4 tracking-tight">
                 Smart Learning
                 <br />
-                <span className="bg-gradient-to-r from-foreground to-muted-foreground dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-foreground to-muted-foreground dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
                   Platform
                 </span>
               </h1>
 
-              <p className="text-muted-foreground dark:text-slate-300 text-sm leading-relaxed mb-6 max-w-sm">
+              <p className="text-muted-foreground dark:text-gray-300 text-sm leading-relaxed mb-6 max-w-sm">
                 Revolutionize education with our intelligent tools for students, teachers, and administrators.
               </p>
 
@@ -287,6 +303,32 @@ export default function RoleSelect() {
                   </div>
                 </div>
 
+                {/* Desktop 24/7 Support badge */}
+                <div className="absolute left-[-70px] bottom-[100px] z-20 rounded-2xl border border-border/60 dark:border-white/15 bg-white/90 dark:bg-[#111827]/90 px-3 py-2 shadow-lg backdrop-blur-md animate-float" style={{ animationDelay: "2s" }}>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white">
+                      <Clock className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-bold text-foreground dark:text-slate-100 leading-none">24/7</p>
+                      <p className="mt-1 text-xs text-muted-foreground dark:text-slate-300 leading-none">Support</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop Expert Teachers badge */}
+                <div className="absolute right-[-70px] top-[80px] z-20 rounded-2xl border border-border/60 dark:border-white/15 bg-white/90 dark:bg-[#111827]/90 px-3 py-2 shadow-lg backdrop-blur-md animate-float" style={{ animationDelay: "3s" }}>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-600 text-white">
+                      <Award className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-bold text-foreground dark:text-slate-100 leading-none">Expert</p>
+                      <p className="mt-1 text-xs text-muted-foreground dark:text-slate-300 leading-none">Teachers</p>
+                    </div>
+                  </div>
+                </div>
+
                 <img
                   src={studentHero}
                   alt="Student with books"
@@ -306,7 +348,7 @@ export default function RoleSelect() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: idx * 0.08 }}
                 onClick={() => navigate(`/auth/${card.key}`)}
-                className="rounded-xl p-3 bg-white/75 dark:bg-[#111827]/80 backdrop-blur-md border border-border/60 dark:border-white/15 hover:shadow-xl dark:hover:shadow-black/40 hover:-translate-y-1 transition-all duration-300 cursor-pointer group text-left md:rounded-2xl md:p-5"
+                className="rounded-xl p-3 bg-white/75 dark:bg-white/10 backdrop-blur-md border border-border/60 dark:border-white/20 hover:shadow-xl dark:hover:shadow-white/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer group text-left md:rounded-2xl md:p-5"
               >
                 {/* Mobile tag */}
                 <div className="inline-flex items-center rounded-full border border-border/60 dark:border-white/15 bg-muted/50 dark:bg-white/10 px-1.5 py-0.5 text-[8px] text-muted-foreground dark:text-slate-300 mb-2 md:text-[10px] md:mb-3">
@@ -321,9 +363,9 @@ export default function RoleSelect() {
                     <card.icon className="w-3.5 h-3.5 md:w-5 md:h-5" />
                   </div>
                 </div>
-                <h3 className="text-xs font-bold text-card-foreground dark:text-slate-100 md:text-base">{card.title}</h3>
-                <p className="hidden md:block text-muted-foreground dark:text-slate-300 text-xs mb-3 leading-relaxed">{card.desc}</p>
-                <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-card-foreground dark:text-slate-100 md:text-xs">
+                <h3 className="text-xs font-bold text-card-foreground dark:text-white md:text-base">{card.title}</h3>
+                <p className="hidden md:block text-muted-foreground dark:text-gray-300 text-xs mb-3 leading-relaxed">{card.desc}</p>
+                <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-card-foreground dark:text-white md:text-xs">
                   Continue
                   <span className="w-5 h-5 rounded-full bg-muted/70 dark:bg-white/10 group-hover:bg-foreground group-hover:text-background dark:group-hover:bg-slate-100 dark:group-hover:text-slate-900 inline-flex items-center justify-center transition md:w-7 md:h-7">
                     <ArrowRight className="w-2.5 h-2.5 md:w-3.5 md:h-3.5" />
@@ -335,13 +377,13 @@ export default function RoleSelect() {
         </div>
       </section>
 
-      <section className="relative z-20 border-t border-border/40 dark:border-white/10 shrink-0 bg-white/55 dark:bg-[#0b1220]/75 backdrop-blur-md">
-        <div className="container mx-auto px-10 md:px-16 grid grid-cols-3 divide-x divide-border/40 text-center py-2.5 md:py-3.5">
+      <section className="relative z-20 border-t border-border/40 dark:border-white/20 shrink-0 bg-white/55 dark:bg-black/50 backdrop-blur-md">
+        <div className="container mx-auto px-10 md:px-16 grid grid-cols-3 divide-x divide-border/40 dark:border-white/20 text-center py-2.5 md:py-3.5">
           {stats.map((stat) => (
             <div key={stat.label} className="flex flex-col items-center">
-              <span className="text-lg md:text-xl font-bold text-foreground dark:text-slate-100">
+              <span className="text-lg md:text-xl font-bold text-foreground dark:text-white">
                 {stat.value}{" "}
-                <span className="font-normal text-muted-foreground dark:text-slate-300 text-xs md:text-sm">{stat.label}</span>
+                <span className="font-normal text-muted-foreground dark:text-gray-300 text-xs md:text-sm">{stat.label}</span>
               </span>
             </div>
           ))}

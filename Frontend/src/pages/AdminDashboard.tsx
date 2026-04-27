@@ -622,52 +622,130 @@ export default function AdminDashboard() {
         {/* Stats - Overview */}
         {activeTab === "overview" && (
           <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label: "Total Users", value: stats.total, icon: Users, color: "primary" },
-                { label: "Students", value: stats.students, icon: GraduationCap, color: "primary" },
-                { label: "Teachers", value: stats.teachers, icon: School, color: "secondary" },
-                { label: "Admins", value: stats.admins, icon: Crown, color: "warning" },
-              ].map((stat, i) => (
-                <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="stat-card">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider">{stat.label}</span>
-                    <stat.icon className={`w-4 h-4 text-${stat.color}`} />
+            {loading && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="glass-card p-8 text-center"
+              >
+                <div className="flex flex-col items-center gap-4">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary"
+                  />
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-bold text-foreground">Loading Dashboard Data</h3>
+                    <p className="text-sm text-muted-foreground">Fetching real-time statistics and user information...</p>
+                    <div className="flex justify-center gap-2 mt-3">
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: 0 }}
+                        className="w-2 h-2 rounded-full bg-primary"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: 0.2 }}
+                        className="w-2 h-2 rounded-full bg-primary"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: 0.4 }}
+                        className="w-2 h-2 rounded-full bg-primary"
+                      />
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                </motion.div>
-              ))}
-            </div>
+                </div>
+              </motion.div>
+            )}
+            {!loading && (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: "Total Users", value: stats.total, icon: Users, color: "primary" },
+                    { label: "Students", value: stats.students, icon: GraduationCap, color: "primary" },
+                    { label: "Teachers", value: stats.teachers, icon: School, color: "secondary" },
+                    { label: "Admins", value: stats.admins, icon: Crown, color: "warning" },
+                  ].map((stat, i) => (
+                    <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="stat-card">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">{stat.label}</span>
+                        <stat.icon className={`w-4 h-4 text-${stat.color}`} />
+                      </div>
+                      <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                    </motion.div>
+                  ))}
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                { label: "Total Classes", value: stats.classes, icon: BookOpen, desc: "Classes created by teachers" },
-                { label: "Assignments", value: stats.assignments, icon: FileText, desc: "Across all teachers" },
-                { label: "Announcements", value: stats.announcements, icon: Bell, desc: "Platform-wide" },
-              ].map((card, i) => (
-                <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} className="stat-card">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider">{card.label}</span>
-                    <card.icon className="w-4 h-4 text-primary" />
-                  </div>
-                  <p className="text-2xl font-bold text-foreground mb-1">{card.value}</p>
-                  <p className="text-xs text-muted-foreground">{card.desc}</p>
-                </motion.div>
-              ))}
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { label: "Total Classes", value: stats.classes, icon: BookOpen, desc: "Classes created by teachers" },
+                    { label: "Assignments", value: stats.assignments, icon: FileText, desc: "Across all teachers" },
+                    { label: "Announcements", value: stats.announcements, icon: Bell, desc: "Platform-wide" },
+                  ].map((card, i) => (
+                    <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} className="stat-card">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">{card.label}</span>
+                        <card.icon className="w-4 h-4 text-primary" />
+                      </div>
+                      <p className="text-2xl font-bold text-foreground mb-1">{card.value}</p>
+                      <p className="text-xs text-muted-foreground">{card.desc}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </>
+            )}
           </motion.div>
         )}
 
         {/* ===== ALL TEACHERS ===== */}
         {activeTab === "all_teachers" && (
           <motion.div key="all_teachers" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">All Teachers ({teachers.length})</h2>
-            {teachers.length === 0 ? (
-              <div className="glass-card p-8 text-center text-muted-foreground">
-                <School className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                <p>No teachers found</p>
-              </div>
-            ) : (
+            {loading && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="glass-card p-8 text-center"
+              >
+                <div className="flex flex-col items-center gap-4">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary"
+                  />
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-bold text-foreground">Loading Teachers Data</h3>
+                    <p className="text-sm text-muted-foreground">Fetching teacher information and assignments...</p>
+                    <div className="flex justify-center gap-2 mt-3">
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: 0 }}
+                        className="w-2 h-2 rounded-full bg-primary"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: 0.2 }}
+                        className="w-2 h-2 rounded-full bg-primary"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: 0.4 }}
+                        className="w-2 h-2 rounded-full bg-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+            {!loading && (
+              <>
+                <h2 className="text-lg font-semibold text-foreground">All Teachers ({teachers.length})</h2>
+                {teachers.length === 0 ? (
+                  <div className="glass-card p-8 text-center text-muted-foreground">
+                    <School className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                    <p>No teachers found</p>
+                  </div>
+                ) : (
               <div className="glass-card overflow-hidden">
                 <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                   <table className="w-full min-w-[720px] md:min-w-full">
@@ -739,6 +817,8 @@ export default function AdminDashboard() {
                   </table>
                 </div>
               </div>
+                )}
+              </>
             )}
           </motion.div>
         )}
@@ -746,34 +826,72 @@ export default function AdminDashboard() {
         {/* ===== ALL STUDENTS ===== */}
         {activeTab === "all_students" && (
           <motion.div key="all_students" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <h2 className="text-lg font-semibold text-foreground">All Students ({students.length})</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowStudentForm(!showStudentForm)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-primary-foreground shadow-lg"
-                  style={{ background: "var(--gradient-primary, linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent))))" }}
-                >
-                  <Plus className="w-4 h-4" />{showStudentForm ? "Cancel" : "Add Student"}
-                </button>
-              </div>
-              <div className="relative w-full sm:w-auto">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search students..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 pr-4 py-2 rounded-lg bg-muted/50 border border-border/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 w-full sm:w-64"
-                />
-              </div>
-            </div>
-            {students.length === 0 ? (
-              <div className="glass-card p-8 text-center text-muted-foreground">
-                <GraduationCap className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                <p>No students found</p>
-              </div>
-            ) : (
+            {loading && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="glass-card p-8 text-center"
+              >
+                <div className="flex flex-col items-center gap-4">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary"
+                  />
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-bold text-foreground">Loading Students Data</h3>
+                    <p className="text-sm text-muted-foreground">Fetching student information and enrollments...</p>
+                    <div className="flex justify-center gap-2 mt-3">
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: 0 }}
+                        className="w-2 h-2 rounded-full bg-primary"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: 0.2 }}
+                        className="w-2 h-2 rounded-full bg-primary"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity, delay: 0.4 }}
+                        className="w-2 h-2 rounded-full bg-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+            {!loading && (
+              <>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <h2 className="text-lg font-semibold text-foreground">All Students ({students.length})</h2>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowStudentForm(!showStudentForm)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-primary-foreground shadow-lg"
+                      style={{ background: "var(--gradient-primary, linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent))))" }}
+                    >
+                      <Plus className="w-4 h-4" />{showStudentForm ? "Cancel" : "Add Student"}
+                    </button>
+                  </div>
+                  <div className="relative w-full sm:w-auto">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search students..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="pl-10 pr-4 py-2 rounded-lg bg-muted/50 border border-border/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 w-full sm:w-64"
+                    />
+                  </div>
+                </div>
+                {students.length === 0 ? (
+                  <div className="glass-card p-8 text-center text-muted-foreground">
+                    <GraduationCap className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                    <p>No students found</p>
+                  </div>
+                ) : (
               <div className="glass-card overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -828,7 +946,7 @@ export default function AdminDashboard() {
                                   </span>
                                 )}
                               </td>
-                              <td className="px-5 py-3 text-sm text-muted-foreground">{s.batch || "—"}</td>
+                              <td className="px-5 py-3 text-sm text-muted-foreground">{s.class_name || "—"}</td>
                               <td className="px-5 py-3 text-sm text-muted-foreground">{new Date(s.created_at).toLocaleDateString()}</td>
                               <td className="px-5 py-3">
                                 <div className="flex items-center gap-2">
@@ -852,6 +970,8 @@ export default function AdminDashboard() {
                   </table>
                 </div>
               </div>
+                )}
+              </>
             )}
           </motion.div>
         )}
@@ -935,7 +1055,7 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5 block">Salary Type</label>
-                  <select className={inputClass} value={salaryForm.salary_type} onChange={e => setSalaryForm(p => ({ ...p, salary_type: e.target.value }))}>
+                  <select className={inputClass} value={salaryForm.salary_type} onChange={e => setSalaryForm(p => ({ ...p, salary_type: e.target.value as "per_day" | "monthly" }))}>
                     <option value="per_day">Per Day</option>
                     <option value="monthly">Fixed Monthly</option>
                   </select>

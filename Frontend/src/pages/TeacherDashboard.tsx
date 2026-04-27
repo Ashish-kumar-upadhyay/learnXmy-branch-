@@ -895,9 +895,42 @@ export default function TeacherDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex items-center justify-center h-64"
+      >
+        <div className="glass-card p-8 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary"
+            />
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-foreground">Loading Teacher Dashboard</h3>
+              <p className="text-sm text-muted-foreground">Fetching your classes and student data...</p>
+              <div className="flex justify-center gap-2 mt-3">
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 0.8, repeat: Infinity, delay: 0 }}
+                  className="w-2 h-2 rounded-full bg-primary"
+                />
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 0.8, repeat: Infinity, delay: 0.2 }}
+                  className="w-2 h-2 rounded-full bg-primary"
+                />
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 0.8, repeat: Infinity, delay: 0.4 }}
+                  className="w-2 h-2 rounded-full bg-primary"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
     );
   }
 
