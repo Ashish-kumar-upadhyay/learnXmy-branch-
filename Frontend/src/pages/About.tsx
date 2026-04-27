@@ -292,7 +292,7 @@ function App() {
                 <span className="block bg-gradient-to-r from-blue-600 via-violet-600 to-cyan-500 bg-clip-text text-transparent">
                   LearnX
                 </span>
-                <span className="block text-[0.62em] leading-tight sm:text-[0.58em]">Smart AI Learning Platform</span>
+                <span className="block text-[0.62em] leading-tight sm:text-[0.58em]">#1 AI Learning Platform in India</span>
               </motion.h1>
               <motion.p
                 variants={itemVariant}
@@ -458,6 +458,8 @@ function App() {
                     playsInline
                     controls
                     poster="/video-poster.jpg"
+                    title="LearnX Platform Demo - AI Learning Management System in Action"
+                    aria-label="LearnX Platform Demo Video"
                   >
                     <source src="/learnx.MP4" type="video/mp4" />
                     Your browser does not support the video tag.
