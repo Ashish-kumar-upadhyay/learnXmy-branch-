@@ -178,11 +178,25 @@ export async function getProfileUser(userId: string) {
   const user = await User.findById(userId).lean();
   if (!user) return null;
   const roles: AppRole[] = [user.role];
+  
+  // Validate avatar URL and fix if broken
+  let validatedAvatarUrl = user.avatar_url;
+  if (user.avatar_url) {
+    try {
+      // Import the validation function dynamically to avoid circular dependency
+      const { validateAvatarUrl } = await import('../controllers/file.controller');
+      validatedAvatarUrl = await validateAvatarUrl(userId, user.avatar_url);
+    } catch (error) {
+      console.error('Error validating avatar URL:', error);
+      // Keep original URL if validation fails
+    }
+  }
+  
   return {
     id: String(user._id),
     email: user.email,
     full_name: user.name,
-    avatar_url: user.avatar_url ?? null,
+    avatar_url: validatedAvatarUrl ?? null,
     batch: null,
     class_name: user.assignedClass ?? null,
     is_approved: (user as any).is_approved ?? true,
