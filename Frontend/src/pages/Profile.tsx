@@ -23,7 +23,6 @@ function resolveAvatarUrl(input: string | null | undefined): string | null {
 function avatarValueForDb(input: string | null | undefined): string | null {
   if (!input) return null;
   const [withoutQuery] = input.split("?");
-  if (withoutQuery.startsWith(API_BASE)) return withoutQuery.replace(API_BASE, "");
   return withoutQuery;
 }
 
@@ -88,10 +87,9 @@ export default function Profile() {
     
     if (profileUpdateRes.status !== 200) {
       console.error("Failed to save avatar to profile:", profileUpdateRes);
-      toast.error("Avatar uploaded but not saved to profile");
+      // Silent failure here; user-facing toast appears only on Save click.
     } else {
       console.log("Avatar saved to profile successfully");
-      toast.success("Avatar updated!");
     }
     
     setUploading(false);
@@ -114,11 +112,8 @@ export default function Profile() {
     });
     
     if (out.status !== 200) {
-      toast.error("Avatar save failed");
       // Revert local state if backend update failed
       setAvatarUrl(resolveAvatarUrl(profile?.avatar_url));
-    } else {
-      toast.success("Avatar selected!");
     }
     
     // Refresh profile to ensure consistency
