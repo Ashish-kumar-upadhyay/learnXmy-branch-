@@ -2,6 +2,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { GraduationCap, Users, BookOpen, Shield, ArrowRight, Sparkles, Zap, TrendingUp, X, Clock, Award, Menu, Moon, Sun } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const studentHero = "/stundets.png";
 
@@ -42,7 +43,7 @@ export default function RoleSelect() {
   const navigate = useNavigate();
   const roleRef = useRef<HTMLDivElement>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   const navItems = useMemo(
     () => [
@@ -54,13 +55,6 @@ export default function RoleSelect() {
     [],
   );
 
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [darkMode]);
 
   return (
     <div className="h-dvh bg-gradient-to-br from-[#f7f9fc] via-background to-[#eef4ff] dark:from-[#0a0a0a] dark:via-[#1a1a1a] dark:to-[#2a2a2a] relative overflow-hidden flex flex-col">
@@ -95,11 +89,11 @@ export default function RoleSelect() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setDarkMode((value) => !value)}
+                  onClick={toggleTheme}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/70 text-slate-700 transition hover:-translate-y-0.5 hover:shadow-lg dark:border-white/10 dark:bg-white/10 dark:text-slate-200"
                   aria-label="Toggle dark mode"
                 >
-                  {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                  {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                 </button>
                 <button
                   type="button"

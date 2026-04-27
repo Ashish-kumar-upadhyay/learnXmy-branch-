@@ -6,6 +6,7 @@ import {
   Zap, ArrowRight, Star, Users, BookOpen, Award, Clock, Target,
   CheckCircle, TrendingUp, Globe, Lightbulb, Rocket, Menu, Moon, Sun, X
 } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const featureItems = [
   {
@@ -58,7 +59,7 @@ export default function Features() {
   const [activeTheme, setActiveTheme] = useState("default");
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<number | null>(null);
-  const [darkMode, setDarkMode] = useState(false);
+  const { theme, toggleTheme } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = useMemo(
@@ -71,13 +72,6 @@ export default function Features() {
     [],
   );
 
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [darkMode]);
 
   const themes = {
     default: {
@@ -147,11 +141,11 @@ export default function Features() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setDarkMode((value) => !value)}
+                onClick={toggleTheme}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/70 text-slate-700 transition hover:-translate-y-0.5 hover:shadow-lg dark:border-white/10 dark:bg-white/10 dark:text-slate-200"
                 aria-label="Toggle dark mode"
               >
-                {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </button>
               <button
                 type="button"

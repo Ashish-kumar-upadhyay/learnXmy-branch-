@@ -1,0 +1,21 @@
+{
+  "name": "LearnX - #1 AI Learning Platform in India",
+  "short_name": "LearnX",
+  "description": "India's leading AI-powered learning management system for schools, colleges, and coaching centers",
+  "start_url": "https://learnxplatform.qzz.io/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/new-favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["education", "productivity", "business"],
+  "lang": "en",
+  "scope": "https://learnxplatform.qzz.io/",
+  "prefer_related_applications": false
+}

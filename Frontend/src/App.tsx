@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import Index from "./pages/Index";
 import Lectures from "./pages/Lectures";
@@ -86,7 +87,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
           <Routes>
             <Route path="/auth" element={<PublicRoute><RoleSelect /></PublicRoute>} />
             <Route path="/auth/:role" element={<PublicRoute><RoleLogin /></PublicRoute>} />
@@ -120,6 +122,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
+        </ThemeProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

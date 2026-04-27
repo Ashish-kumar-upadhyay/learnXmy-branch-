@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE, getApiErrorMessage } from "@/lib/backendApi";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -18,7 +19,7 @@ export default function Contact() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [activeTheme, setActiveTheme] = useState("default");
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
-  const [darkMode, setDarkMode] = useState(false);
+  const { theme, toggleTheme } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = useMemo(
@@ -31,14 +32,7 @@ export default function Contact() {
     [],
   );
 
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [darkMode]);
-
+  
   const themes = {
     default: {
       primary: "hsl(220 90% 56%)",
@@ -155,11 +149,11 @@ export default function Contact() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setDarkMode((value) => !value)}
+                onClick={toggleTheme}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/70 text-slate-700 transition hover:-translate-y-0.5 hover:shadow-lg dark:border-white/10 dark:bg-white/10 dark:text-slate-200"
                 aria-label="Toggle dark mode"
               >
-                {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </button>
               <button
                 type="button"

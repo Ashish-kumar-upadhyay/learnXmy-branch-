@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const platformUrl = "https://learnxplatform.qzz.io";
 
@@ -188,7 +189,7 @@ function FeatureCheck({ children }: { children: ReactNode }) {
 }
 
 function App() {
-  const [darkMode, setDarkMode] = useState(false);
+  const { theme, toggleTheme } = useTheme();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const navItems = useMemo(
@@ -202,7 +203,7 @@ function App() {
   );
 
   return (
-    <div className={darkMode ? "dark" : ""}>
+    <div className={theme === "dark" ? "dark" : ""}>
       <main className="min-h-screen overflow-hidden bg-[#f7f9fc] text-slate-950 antialiased transition-colors duration-500 dark:bg-[#050713] dark:text-white">
         <div className="pointer-events-none fixed inset-0 overflow-hidden">
           <motion.div
@@ -238,11 +239,11 @@ function App() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setDarkMode((value) => !value)}
+                onClick={toggleTheme}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/70 text-slate-700 transition hover:-translate-y-0.5 hover:shadow-lg dark:border-white/10 dark:bg-white/10 dark:text-slate-200"
                 aria-label="Toggle dark mode"
               >
-                {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </button>
               <a
                 href={platformUrl}
