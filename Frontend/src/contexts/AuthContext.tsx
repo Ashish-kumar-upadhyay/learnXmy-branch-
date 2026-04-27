@@ -5,6 +5,32 @@ import { api, API_BASE, clearTokens, getAccessToken, getRefreshToken, setTokens 
 type AppRole = "student" | "teacher" | "admin";
 
 type FrontendUser = { id: string; email: string };
+type ProfilePayload = {
+  id?: string;
+  email?: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  batch: string | null;
+  class_name: string | null;
+  is_approved?: boolean;
+  student_id?: string | null;
+  teacher_code?: string | null;
+  roles?: AppRole[];
+};
+type RefreshTokenPayload = { accessToken?: string; refreshToken?: string };
+
+function normalizeAvatarUrl(rawAvatar: unknown): string | null {
+  if (typeof rawAvatar !== "string" || rawAvatar.trim().length === 0) return null;
+  const avatar = rawAvatar.trim();
+  if (avatar.startsWith("http://localhost")) {
+    const relativePath = avatar.replace(/^http:\/\/localhost:\d+/, "");
+    return `${API_BASE}${relativePath}`;
+  }
+  if (avatar.startsWith("http://") || avatar.startsWith("https://")) return avatar;
+  if (avatar.startsWith("/api/files/")) return `${API_BASE}${avatar}`;
+  if (avatar.startsWith("/")) return `${API_BASE}${avatar}`;
+  return `${API_BASE}/api/files/${avatar}`;
+}
 
 interface AuthContextType {
   user: FrontendUser | null;
@@ -52,23 +78,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasRedirected = useRef(false);
 
   async function loadProfileWithAccessToken(accessToken: string) {
-    const profileRes = await api<any>("/api/auth/profile", { method: "GET", accessToken });
+    const profileRes = await api<ProfilePayload>("/api/auth/profile", { method: "GET", accessToken });
     if (profileRes.status !== 200 || !profileRes.data) return false;
 
     const p = profileRes.data;
-    if (p?.avatar_url && typeof p.avatar_url === "string") {
-      // If backend sends absolute localhost URL, replace it with current API_BASE
-      if (p.avatar_url.startsWith("http://localhost")) {
-        const relativePath = p.avatar_url.replace(/^http:\/\/localhost:\d+/, '');
-        p.avatar_url = `${API_BASE}${relativePath}`;
-      }
-      // Backend returns relative URLs like `/api/files/<id>`
-      else if (p.avatar_url.startsWith("/")) {
-        p.avatar_url = `${API_BASE}${p.avatar_url}`;
-      }
-    } else {
-      console.log("AuthContext - No avatar URL found in profile");
-    }
+    p.avatar_url = normalizeAvatarUrl(p?.avatar_url);
     const nextRoles = (p.roles || []) as AppRole[];
     setProfile(p);
     setRoles(nextRoles);
@@ -115,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (ok) return;
 
       if (refreshToken) {
-        const refreshRes = await api<any>("/api/auth/refresh-token", {
+        const refreshRes = await api<RefreshTokenPayload>("/api/auth/refresh-token", {
           method: "POST",
           body: JSON.stringify({ refreshToken }),
         });

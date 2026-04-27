@@ -31,7 +31,12 @@ export const welcomeLoginSchema = Joi.object({
 
 export const updateProfileSchema = Joi.object({
   full_name: Joi.string().min(1),
-  avatar_url: Joi.string().uri().allow('', null),
+  avatar_url: Joi.alternatives()
+    .try(
+      Joi.string().uri(),
+      Joi.string().pattern(/^\/api\/files\/[a-fA-F0-9]{24}$/)
+    )
+    .allow('', null),
   batch: Joi.string().allow('', null),
   class_name: Joi.string().allow('', null),
   username: Joi.string().min(2).allow('', null),

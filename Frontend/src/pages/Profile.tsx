@@ -13,6 +13,20 @@ const DEFAULT_AVATARS = [
   { id: "neutral", url: "https://api.dicebear.com/9.x/adventurer/svg?seed=Riley&backgroundColor=ffdfbf", label: "Neutral" },
 ];
 
+function resolveAvatarUrl(input: string | null | undefined): string | null {
+  if (!input || typeof input !== "string") return null;
+  if (input.startsWith("http://") || input.startsWith("https://")) return input;
+  if (input.startsWith("/api/files/")) return `${API_BASE}${input}`;
+  return `${API_BASE}/api/files/${input}`;
+}
+
+function avatarValueForDb(input: string | null | undefined): string | null {
+  if (!input) return null;
+  const [withoutQuery] = input.split("?");
+  if (withoutQuery.startsWith(API_BASE)) return withoutQuery.replace(API_BASE, "");
+  return withoutQuery;
+}
+
 export default function Profile() {
   const { user, profile, roles, refreshProfile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -22,57 +36,12 @@ export default function Profile() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (profile && !loaded) {
-      setFullName(profile.full_name || "");
-      setClassName(profile.class_name || "");
-      // Ensure avatar_url is properly formatted
-      const avatar = profile.avatar_url;
-      console.log("Profile useEffect - avatar from backend:", avatar);
-      if (avatar && typeof avatar === "string") {
-        // If it's already a full URL, use it as-is
-        if (avatar.startsWith("http")) {
-          setAvatarUrl(avatar);
-        } else if (avatar.startsWith("/api/files/")) {
-          // If it's already a proper API path, construct full URL
-          setAvatarUrl(`${API_BASE}${avatar}`);
-        } else {
-          // If it's just a file ID, construct the proper files API URL
-          const fileUrl = `${API_BASE}/api/files/${avatar}`;
-          console.log("Constructed avatar URL:", fileUrl);
-          setAvatarUrl(fileUrl);
-        }
-      } else {
-        setAvatarUrl(null);
-      }
-      setLoaded(true);
-    }
-  }, [profile, loaded]);
-  
-  // Also update when profile changes after refresh
-  useEffect(() => {
-    if (profile) {
-      const avatar = profile.avatar_url;
-      console.log("Profile update useEffect - avatar from backend:", avatar);
-      if (avatar && typeof avatar === "string") {
-        // If it's already a full URL, use it as-is
-        if (avatar.startsWith("http")) {
-          setAvatarUrl(avatar);
-        } else if (avatar.startsWith("/api/files/")) {
-          // If it's already a proper API path, construct full URL
-          setAvatarUrl(`${API_BASE}${avatar}`);
-        } else {
-          // If it's just a file ID, construct the proper files API URL
-          const fileUrl = `${API_BASE}/api/files/${avatar}`;
-          console.log("Constructed avatar URL (update):", fileUrl);
-          setAvatarUrl(fileUrl);
-        }
-      } else {
-        setAvatarUrl(null);
-      }
-    }
+    if (!profile) return;
+    setFullName(profile.full_name || "");
+    setClassName(profile.class_name || "");
+    setAvatarUrl(resolveAvatarUrl(profile.avatar_url));
   }, [profile]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,31 +73,17 @@ export default function Profile() {
     }
 
     const newUrl = json.data?.url as string | undefined;
-    console.log("Upload response:", json);
-    console.log("New avatar URL:", newUrl);
-    // Ensure the URL is properly formatted
-    let absUrl = null;
-    if (newUrl) {
-      if (newUrl.startsWith("http")) {
-        absUrl = newUrl;
-      } else if (newUrl.startsWith("/api/files/")) {
-        absUrl = `${API_BASE}${newUrl}`;
-      } else {
-        // If it's just a file ID, construct the proper files API URL
-        absUrl = `${API_BASE}/api/files/${newUrl}`;
-      }
-    }
-    console.log("Formatted avatar URL:", absUrl);
+    const absUrl = resolveAvatarUrl(newUrl);
     
     // Update local state immediately with cache-busting
     const cacheBustingUrl = absUrl ? `${absUrl}?t=${Date.now()}` : null;
     setAvatarUrl(cacheBustingUrl);
     
-    // Also update the profile in backend to persist the change
+    // Persist clean value (without cache query) in DB.
     const profileUpdateRes = await api("/api/auth/profile", {
       method: "PUT",
       accessToken,
-      body: JSON.stringify({ avatar_url: absUrl }),
+      body: JSON.stringify({ avatar_url: avatarValueForDb(absUrl) }),
     });
     
     if (profileUpdateRes.status !== 200) {
@@ -140,8 +95,6 @@ export default function Profile() {
     }
     
     setUploading(false);
-    console.log("refreshProfile function:", refreshProfile);
-    // Refresh profile to get updated data
     await refreshProfile?.();
   };
 
@@ -149,8 +102,6 @@ export default function Profile() {
     const accessToken = getAccessToken();
     if (!accessToken) return;
     if (!user) return;
-    
-    console.log("Selecting default avatar:", url);
     
     // Update local state immediately for better UX
     setAvatarUrl(url);
@@ -163,12 +114,10 @@ export default function Profile() {
     });
     
     if (out.status !== 200) {
-      console.error("Avatar save failed:", out);
       toast.error("Avatar save failed");
       // Revert local state if backend update failed
-      setAvatarUrl(profile?.avatar_url || null);
+      setAvatarUrl(resolveAvatarUrl(profile?.avatar_url));
     } else {
-      console.log("Default avatar saved successfully");
       toast.success("Avatar selected!");
     }
     
@@ -188,7 +137,7 @@ export default function Profile() {
       body: JSON.stringify({
         full_name: fullName.trim(),
         class_name: className.trim() || null,
-        avatar_url: avatarUrl,
+        avatar_url: avatarValueForDb(avatarUrl),
       }),
     });
     if (out.status !== 200 || !out.data) {
@@ -220,21 +169,10 @@ export default function Profile() {
                 src={avatarUrl} 
                 alt="Avatar" 
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  console.error("Avatar image failed to load:", avatarUrl);
-                  // Fallback to initials if image fails to load
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  target.nextElementSibling?.classList.remove('hidden');
-                }}
-                onLoad={() => {
-                  console.log("Avatar image loaded successfully:", avatarUrl);
-                }}
+                onError={() => setAvatarUrl(null)}
               />
             ) : null}
-            {!avatarUrl && (
-              <span className="text-4xl font-bold text-primary">{initials}</span>
-            )}
+            <span className={`text-4xl font-bold text-primary ${avatarUrl ? "hidden" : ""}`}>{initials}</span>
           </div>
           <button
             onClick={() => fileInputRef.current?.click()}
