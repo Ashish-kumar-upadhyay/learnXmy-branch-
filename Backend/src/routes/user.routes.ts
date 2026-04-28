@@ -4,14 +4,15 @@ import { authMiddleware } from '../middleware/auth.middleware';
 import { requireRoles } from '../middleware/role.middleware';
 import { validateBody } from '../middleware/validation.middleware';
 import { createUserAdminSchema, roleAssignSchema } from '../utils/validation';
+import { cacheMiddleware } from '../middleware/cache.middleware';
 
 const r = Router();
 r.use(authMiddleware);
 
-r.get('/', requireRoles('admin'), user.listUsers);
+r.get('/', requireRoles('admin'), cacheMiddleware(5 * 60 * 1000), user.listUsers);
 r.post('/', requireRoles('admin'), validateBody(createUserAdminSchema), user.createUser);
-r.get('/batch/:batch', user.usersByBatch);
-r.get('/:id', user.getUserById);
+r.get('/batch/:batch', cacheMiddleware(3 * 60 * 1000), user.usersByBatch);
+r.get('/:id', cacheMiddleware(10 * 60 * 1000), user.getUserById);
 r.put('/:id', user.updateUser);
 r.delete('/:id', requireRoles('admin', 'teacher'), user.deleteUser);
 r.post('/:id/assign-role', requireRoles('admin'), validateBody(roleAssignSchema), user.assignRole);
