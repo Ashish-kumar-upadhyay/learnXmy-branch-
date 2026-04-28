@@ -6,7 +6,7 @@ import { env } from './config/environment';
 import { setRealtimeServer } from './realtime';
 import { logger } from './utils/logger';
 
-const DB_RETRY_MS = 7000;
+const DB_RETRY_MS = 2000;
 
 async function connectDatabaseWithRetry() {
   // Keep retrying so dev server doesn't crash on transient Atlas issues/IP whitelist delay.

@@ -28,16 +28,22 @@ async function notifyAssignmentPublished(batch: string | null | undefined, title
   if (!batch) return;
   const students = await User.find({ role: 'student', assignedClass: batch }).select('_id').lean();
   if (!students.length) return;
+  
+  // Bulk insert notifications instead of individual creates
+  const notifications = students.map(s => ({
+    user_id: String(s._id),
+    title: 'New assignment published',
+    message: `"${title}" is now available. Please check Assignments.`,
+    type: 'assignment',
+    target_path: '/assignments',
+  }));
+  
+  const insertedDocs = await Notification.insertMany(notifications);
+  
+  // Send real-time notifications
   await Promise.all(
-    (students as any[]).map(async (s) => {
-      const uid = String(s._id);
-      const doc = await Notification.create({
-        user_id: uid,
-        title: 'New assignment published',
-        message: `"${title}" is now available. Please check Assignments.`,
-        type: 'assignment',
-        target_path: '/assignments',
-      });
+    insertedDocs.map((doc) => {
+      const uid = String(doc.user_id);
       notifyUser(uid, 'notification', {
         id: String(doc._id),
         title: doc.title,

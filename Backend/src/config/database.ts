@@ -6,7 +6,7 @@ import { User } from '../models/User.model';
 
 export async function connectDatabase(): Promise<void> {
   mongoose.set('strictQuery', true);
-  mongoose.set('bufferCommands', false);
+  mongoose.set('bufferCommands', true);
   if (mongoose.connection.readyState === 1) return;
   const candidates = Array.from(
     new Set(

@@ -54,16 +54,22 @@ export async function createTimetable(req: AuthRequest, res: Response) {
       const students = await User.find({ role: 'student', assignedClass: { $in: variants } })
         .select('_id')
         .lean();
+      
+      // Bulk insert notifications instead of individual creates
+      const notifications = students.map(s => ({
+        user_id: String(s._id),
+        title: 'Timetable updated',
+        message: `New class added to timetable for batch ${batch}.`,
+        type: 'timetable',
+        target_path: '/timetable',
+      }));
+      
+      const insertedDocs = await Notification.insertMany(notifications);
+      
+      // Send real-time notifications
       await Promise.all(
-        (students as any[]).map(async (s) => {
-          const uid = String(s._id);
-          const n = await Notification.create({
-            user_id: uid,
-            title: 'Timetable updated',
-            message: `New class added to timetable for batch ${batch}.`,
-            type: 'timetable',
-            target_path: '/timetable',
-          });
+        insertedDocs.map((n) => {
+          const uid = String(n.user_id);
           notifyUser(uid, 'notification', {
             id: String(n._id),
             title: n.title,

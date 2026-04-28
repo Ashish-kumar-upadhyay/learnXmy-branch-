@@ -81,4 +81,9 @@ UserSchema.index(
   }
 );
 
+// Performance indexes for frequently queried fields
+UserSchema.index({ assignedClass: 1 });
+UserSchema.index({ role: 1, assignedClass: 1 });
+UserSchema.index({ email: 1 });
+
 export const User = mongoose.model<IUser>('User', UserSchema);
