@@ -77,10 +77,25 @@ export default function RoleLogin() {
   const [loading, setLoading] = useState(false);
   const [waitingApproval, setWaitingApproval] = useState(false);
   const [highlightInputs, setHighlightInputs] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [rateLimitMessage, setRateLimitMessage] = useState("");
 
   const validRole = (role && role in roleConfig ? role : "student") as RoleKey;
   const config = roleConfig[validRole];
   const RoleIcon = config.icon;
+
+  // Rate limiting helper function
+  const getRetryDelay = (attemptNumber: number) => {
+    // Exponential backoff: 2^attempt seconds, max 60 seconds
+    const delay = Math.min(Math.pow(2, attemptNumber), 60);
+    return delay * 1000; // Convert to milliseconds
+  };
+
+  const isRateLimitError = (message: string) => {
+    return message.toLowerCase().includes("too many requests") || 
+           message.toLowerCase().includes("rate limit") ||
+           message.toLowerCase().includes("try again later");
+  };
 
   // Clear all input fields when component mounts
   useEffect(() => {
@@ -89,6 +104,8 @@ export default function RoleLogin() {
     setTeacherLoginCode("");
     setPassword("");
     setFullName("");
+    setRetryCount(0);
+    setRateLimitMessage("");
   }, [role]);
 
   const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {

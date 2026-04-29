@@ -7,7 +7,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { api, getAccessToken } from "@/lib/backendApi";
+import { api, getAccessToken, getApiErrorMessage } from "@/lib/backendApi";
 import { useAuth } from "@/contexts/AuthContext";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
@@ -38,6 +38,7 @@ type Submission = {
   assignment_id: string;
   submission_link: string;
   status: string;
+  is_late?: boolean;
   grade: string | null;
   feedback: string | null;
   submitted_at: string;
@@ -50,6 +51,7 @@ export default function Assignments() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [submissionLink, setSubmissionLink] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -107,6 +109,7 @@ export default function Assignments() {
     const sub = getSubmission(a.id);
     if (sub) {
       if (sub.grade) return "reviewed";
+      if (sub.status === "late" || sub.is_late) return "late";
       return "submitted";
     }
     const now = new Date();
@@ -131,6 +134,11 @@ export default function Assignments() {
     setSelectedAssignment(assignment);
     setSubmissionLink(existing?.submission_link || "");
     setSubmitDialogOpen(true);
+  };
+
+  const handleViewDetails = (assignment: Assignment) => {
+    setSelectedAssignment(assignment);
+    setDetailsDialogOpen(true);
   };
 
   const handleSubmit = async () => {
@@ -162,7 +170,7 @@ export default function Assignments() {
     setSubmitting(false);
 
     if (res.status !== 200) {
-      toast.error("Submission failed");
+      toast.error(getApiErrorMessage(res.error, "Submission failed"));
       return;
     }
 
@@ -208,6 +216,7 @@ export default function Assignments() {
         </div>
       </motion.div>
 
+      
       {dbAssignments.length === 0 ? (
         <div className="glass-card p-12 text-center text-muted-foreground">
           <Upload className="w-10 h-10 mx-auto mb-3 opacity-40" />
@@ -223,12 +232,17 @@ export default function Assignments() {
               <motion.div 
                 key={a.id} 
                 variants={item} 
-                className={`glass-card-hover p-5 ${effectiveStatus === "overdue" ? "border-violet-500/30 bg-violet-500/5" : ""}`}
+                className={`glass-card-hover p-5 cursor-pointer ${effectiveStatus === "overdue" ? "border-violet-500/30 bg-violet-500/5" : ""}`}
+                onClick={() => handleViewDetails(a)}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
-                      <h3 className="font-semibold text-foreground truncate">{a.title}</h3>
+                      <h3 
+                        className="font-semibold text-foreground truncate hover:text-primary transition-colors"
+                      >
+                        {a.title}
+                      </h3>
                       <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium ${status.class}`}>
                         {status.label}
                       </span>
@@ -301,7 +315,10 @@ export default function Assignments() {
                   </div>
                   {isStudent && canEditSubmission(a) && (
                     <button
-                      onClick={() => handleOpenSubmit(a)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenSubmit(a);
+                      }}
                       className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors flex-shrink-0"
                     >
                       <Upload className="w-4 h-4" /> {sub ? "Edit Submission" : "Submit"}
@@ -309,7 +326,10 @@ export default function Assignments() {
                   )}
                   {isStudent && canPracticeSubmission(a) && (
                     <button
-                      onClick={() => handleOpenSubmit(a)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenSubmit(a);
+                      }}
                       className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-500/10 text-violet-600 text-sm font-medium hover:bg-violet-500/20 transition-colors flex-shrink-0 border border-violet-500/20"
                     >
                       <Upload className="w-4 h-4" /> Practice Submit
@@ -329,7 +349,7 @@ export default function Assignments() {
 
       {/* Submit Dialog */}
       <Dialog open={submitDialogOpen && isStudent} onOpenChange={setSubmitDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg transition-all duration-300 ease-out">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="w-5 h-5 text-primary" />
@@ -380,6 +400,206 @@ export default function Assignments() {
             <Button onClick={handleSubmit} disabled={submitting}>
               {submitting ? "Saving..." : "Save Submission"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assignment Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto transition-all duration-300 ease-out" style={{ marginTop: '-30vh', marginLeft: '-15vw' }}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <Calendar className="w-4 h-4 text-white" />
+              </div>
+              {selectedAssignment?.title}
+            </DialogTitle>
+            <DialogDescription>
+              Assignment details and requirements
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Assignment Description */}
+            {selectedAssignment?.description && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  <h4 className="font-semibold text-foreground">Description</h4>
+                </div>
+                <div className="p-4 rounded-lg bg-muted/30 border border-border/20">
+                  <p className="text-sm leading-relaxed text-foreground">
+                    {selectedAssignment.description}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Assignment Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Deadline */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500" />
+                  <h4 className="font-semibold text-foreground">Deadline</h4>
+                </div>
+                <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200/50 dark:border-amber-800/30">
+                  <p className="text-sm font-medium text-foreground">
+                    {selectedAssignment?.due_date ? normalizedDueDate(selectedAssignment.due_date).toLocaleString() : 'No deadline'}
+                  </p>
+                  {(() => {
+                    if (!selectedAssignment?.due_date) return null;
+                    const now = new Date();
+                    const due = normalizedDueDate(selectedAssignment.due_date);
+                    const diff = due.getTime() - now.getTime();
+                    if (diff <= 0) {
+                      return <p className="text-xs text-red-600 dark:text-red-400 mt-1">⚠️ Overdue</p>;
+                    }
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    return (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                        ⏰ {days > 0 ? `${days}d ${hours}h remaining` : `${hours}h remaining`}
+                      </p>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Duration */}
+              {selectedAssignment?.duration_hours && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Timer className="w-4 h-4 text-blue-500" />
+                    <h4 className="font-semibold text-foreground">Duration</h4>
+                  </div>
+                  <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-800/30">
+                    <p className="text-sm font-medium text-foreground">
+                      {selectedAssignment.duration_hours} hours to complete
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Max Score */}
+              {selectedAssignment?.max_score && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">★</span>
+                    </div>
+                    <h4 className="font-semibold text-foreground">Maximum Score</h4>
+                  </div>
+                  <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-800/30">
+                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                      {selectedAssignment.max_score} points
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Batch */}
+              {selectedAssignment?.batch && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">#</span>
+                    </div>
+                    <h4 className="font-semibold text-foreground">Batch</h4>
+                  </div>
+                  <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200/50 dark:border-purple-800/30">
+                    <p className="text-sm font-medium text-foreground font-mono">
+                      {selectedAssignment.batch}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Reference Link */}
+            {selectedAssignment?.reference_link && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <ExternalLink className="w-4 h-4 text-primary" />
+                  <h4 className="font-semibold text-foreground">Reference Material</h4>
+                </div>
+                <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                  <a 
+                    href={selectedAssignment.reference_link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline flex items-center gap-2"
+                  >
+                    📎 Open Assignment Reference
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* Submission Status (for students) */}
+            {isStudent && (() => {
+              const submission = getSubmission(selectedAssignment?.id || "");
+              if (submission) {
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <h4 className="font-semibold text-foreground">Your Submission</h4>
+                    </div>
+                    <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-800/30">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Link2 className="w-3 h-3 text-emerald-600" />
+                          <a 
+                            href={submission.submission_link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-sm text-emerald-600 hover:underline"
+                          >
+                            View Submitted Work
+                          </a>
+                        </div>
+                        {submission.grade && (
+                          <p className="text-sm font-medium text-emerald-600">
+                            🏆 Grade: {submission.grade}
+                          </p>
+                        )}
+                        {submission.feedback && (
+                          <div className="mt-2 p-2 rounded bg-warning/10 border border-warning/20">
+                            <p className="text-xs text-warning">
+                              💬 {submission.feedback}
+                            </p>
+                          </div>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Submitted: {new Date(submission.submitted_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>
+              Close
+            </Button>
+            {isStudent && selectedAssignment && canEditSubmission(selectedAssignment) && (
+              <Button 
+                onClick={() => {
+                  setDetailsDialogOpen(false);
+                  handleOpenSubmit(selectedAssignment);
+                }}
+                className="flex items-center gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                Submit Assignment
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

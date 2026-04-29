@@ -1337,6 +1337,11 @@ export default function TeacherDashboard() {
                               <div className="flex items-center justify-between">
                                 <div>
                                   <p className="text-sm font-medium text-foreground">{studentName}</p>
+                                  {(sub.status === "late" || sub.is_late) && (
+                                    <span className="inline-flex mt-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-warning/15 text-warning">
+                                      Late Submission
+                                    </span>
+                                  )}
                                   <div className="flex items-center gap-2 mt-1">
                                     <Link2 className="w-3 h-3 text-primary" />
                                     <a href={sub.submission_link} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate max-w-xs">

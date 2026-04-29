@@ -153,144 +153,44 @@ export default function Index() {
 
   if (isLoading) {
     return (
-      <motion.div variants={container} initial="hidden" animate="show" className="space-y-7 min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <motion.div 
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="w-full max-w-2xl mx-auto p-8"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md"
         >
-          {/* Main Loading Card */}
-          <div className="glass-card p-12 text-center relative overflow-hidden">
-            {/* Animated Background Gradient */}
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10"
-              animate={{ 
-                background: [
-                  "linear-gradient(45deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1), rgba(236, 72, 153, 0.1))",
-                  "linear-gradient(45deg, rgba(147, 51, 234, 0.1), rgba(236, 72, 153, 0.1), rgba(59, 130, 246, 0.1))",
-                  "linear-gradient(45deg, rgba(236, 72, 153, 0.1), rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1))"
-                ]
-              }}
-              transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-            />
-            
-            <div className="relative z-10 flex flex-col items-center gap-8">
-              {/* Animated Logo/Icon */}
+          <div className="glass-card p-8 text-center">
+            <div className="flex flex-col items-center gap-4">
               <motion.div
-                animate={{ 
-                  rotate: 360,
-                  scale: [1, 1.1, 1]
-                }}
-                transition={{ 
-                  rotate: { duration: 3, repeat: Infinity, ease: "linear" },
-                  scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-                }}
-                className="relative"
-              >
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-blue-500/25">
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary"
+              />
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-foreground">Loading Student Dashboard</h3>
+                <p className="text-sm text-muted-foreground">Fetching your learning progress and activities...</p>
+                <div className="flex justify-center gap-2 mt-3">
                   <motion.div
-                    animate={{ rotate: -360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                    className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center"
-                  >
-                    <Sparkles className="w-6 h-6 text-white" />
-                  </motion.div>
-                </div>
-                
-                {/* Orbiting Dots */}
-                {[0, 120, 240].map((angle, i) => (
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 0.8, repeat: Infinity, delay: 0 }}
+                    className="w-2 h-2 rounded-full bg-primary"
+                  />
                   <motion.div
-                    key={i}
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "linear", delay: i * 0.3 }}
-                    className="absolute inset-0"
-                  >
-                    <motion.div
-                      animate={{ scale: [1, 1.5, 1] }}
-                      transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
-                      className="absolute w-3 h-3 rounded-full bg-gradient-to-r from-blue-400 to-purple-400"
-                      style={{
-                        top: '50%',
-                        left: '50%',
-                        transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-40px)`
-                      }}
-                    />
-                  </motion.div>
-                ))}
-              </motion.div>
-
-              {/* Text Content */}
-              <div className="space-y-4">
-                <motion.h3 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
-                >
-                  Loading Your Learning Hub
-                </motion.h3>
-                
-                <motion.p 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="text-muted-foreground text-lg"
-                >
-                  Preparing your personalized dashboard...
-                </motion.p>
-
-                {/* Loading Messages */}
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                  className="space-y-2"
-                >
-                  {[
-                    "📚 Fetching your courses",
-                    "📊 Analyzing your progress", 
-                    "🎯 Setting up your goals",
-                    "✨ Almost ready..."
-                  ].map((message, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.6 + i * 0.3 }}
-                      className="flex items-center justify-center gap-2 text-sm text-muted-foreground"
-                    >
-                      <motion.div
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.2 }}
-                        className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-400"
-                      />
-                      {message}
-                    </motion.div>
-                  ))}
-                </motion.div>
-              </div>
-
-              {/* Progress Bar */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8 }}
-                className="w-full max-w-xs mx-auto"
-              >
-                <div className="h-2 w-full rounded-full bg-muted/30 overflow-hidden">
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 0.8, repeat: Infinity, delay: 0.2 }}
+                    className="w-2 h-2 rounded-full bg-primary"
+                  />
                   <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-600"
-                    initial={{ width: "0%" }}
-                    animate={{ width: "100%" }}
-                    transition={{ duration: 2, ease: "easeInOut" }}
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 0.8, repeat: Infinity, delay: 0.4 }}
+                    className="w-2 h-2 rounded-full bg-primary"
                   />
                 </div>
-              </motion.div>
+              </div>
             </div>
           </div>
         </motion.div>
-      </motion.div>
+      </div>
     );
   }
 
@@ -299,7 +199,7 @@ export default function Index() {
       {/* Header */}
       <motion.div variants={item} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-foreground to-foreground/80 dark:from-foreground dark:to-foreground/60 bg-clip-text text-transparent tracking-tight">
+          <h1 className="text-3xl md:text-4xl font-semibold bg-gradient-to-r from-foreground to-foreground/80 dark:from-foreground dark:to-foreground/60 bg-clip-text text-transparent tracking-tight">
             Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, {firstName} 👋
           </h1>
           <p className="text-muted-foreground/90 dark:text-muted-foreground/70 mt-2 text-base leading-relaxed">Here's what's happening with your learning today</p>
@@ -311,7 +211,7 @@ export default function Index() {
             whileTap={{ scale: 0.95 }}
           >
             <Flame className="w-4 h-4 text-amber-500" />
-            <span className="text-sm font-bold text-amber-700 dark:text-amber-400">{stats.streak}</span>
+            <span className="text-sm font-medium text-amber-700 dark:text-amber-400">{stats.streak}</span>
           </motion.div>
         </div>
       </motion.div>
@@ -330,9 +230,9 @@ export default function Index() {
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-[10px] text-muted-foreground/60 dark:text-muted-foreground/50 uppercase tracking-[0.15em] font-semibold mb-2">{stat.label}</p>
-                  <p className="text-[32px] font-black text-foreground dark:text-foreground/95 leading-none tracking-tight">{stat.value}</p>
-                  <p className={`text-xs mt-2 flex items-center gap-1 font-semibold ${style.changeColor}`}>
+                  <p className="text-[10px] text-muted-foreground/60 dark:text-muted-foreground/50 uppercase tracking-[0.15em] font-medium mb-2">{stat.label}</p>
+                  <p className="text-[32px] font-semibold text-foreground dark:text-foreground/95 leading-none tracking-tight">{stat.value}</p>
+                  <p className={`text-xs mt-2 flex items-center gap-1 font-medium ${style.changeColor}`}>
                     <ArrowUpRight className="w-3 h-3" /> {stat.change}
                   </p>
                 </div>
@@ -355,11 +255,11 @@ export default function Index() {
                 <Activity className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-foreground dark:text-foreground/95 mb-1">Weekly Activity</h3>
+                <h3 className="text-lg font-semibold text-foreground dark:text-foreground/95 mb-1">Weekly Activity</h3>
                 <p className="text-sm text-muted-foreground/70 dark:text-muted-foreground/60 mt-1">Activity count this week</p>
               </div>
             </div>
-            <span className="text-xs text-muted-foreground font-semibold px-3 py-1.5 rounded-xl bg-gradient-to-r from-muted/40 to-muted/30 border border-border/15 shadow-sm">Last 7 Days</span>
+            <span className="text-xs text-muted-foreground font-medium px-3 py-1.5 rounded-xl bg-gradient-to-r from-muted/40 to-muted/30 border border-border/15 shadow-sm">Last 7 Days</span>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={weeklyData}>
@@ -395,7 +295,7 @@ export default function Index() {
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-foreground dark:text-foreground/95 mb-2">Overall Progress</h3>
+                <h3 className="text-lg font-semibold text-foreground dark:text-foreground/95 mb-2">Overall Progress</h3>
                 <p className="text-sm text-muted-foreground/70 dark:text-muted-foreground/60 mb-6">Your performance overview</p>
               </div>
             </div>
@@ -420,11 +320,11 @@ export default function Index() {
                 <Calendar className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-foreground dark:text-foreground/95 mb-1">Your Classes</h3>
+                <h3 className="text-lg font-semibold text-foreground dark:text-foreground/95 mb-1">Your Classes</h3>
                 <p className="text-sm text-muted-foreground/70 dark:text-muted-foreground/60 mt-1">Upcoming scheduled classes</p>
               </div>
             </div>
-            <Link to="/attendance" className="text-xs font-semibold text-primary hover:underline">View all</Link>
+            <Link to="/attendance" className="text-xs font-medium text-primary hover:underline">View all</Link>
           </div>
           {dbClasses.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -478,7 +378,7 @@ export default function Index() {
                 <Zap className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-foreground dark:text-foreground/95 mb-1">Sprint Plan</h3>
+                <h3 className="text-lg font-semibold text-foreground dark:text-foreground/95 mb-1">Sprint Plan</h3>
                 <p className="text-sm text-muted-foreground/70 dark:text-muted-foreground/60 mt-1">Current tasks</p>
               </div>
             </div>
@@ -489,7 +389,7 @@ export default function Index() {
                   style={{ width: `${sprintTasks.length > 0 ? (doneCount / sprintTasks.length) * 100 : 0}%` }}
                 />
               </div>
-              <span className="text-xs font-bold text-muted-foreground">
+              <span className="text-xs font-medium text-muted-foreground">
                 {doneCount}/{sprintTasks.length}
               </span>
             </div>

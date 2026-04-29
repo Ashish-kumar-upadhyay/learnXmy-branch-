@@ -24,6 +24,16 @@ function normalizeDueDate(due: Date | string | null | undefined) {
   return dt;
 }
 
+function getSubmissionStatus(
+  dueDate: Date | string | null | undefined,
+  submittedAt: Date | string | null | undefined
+) {
+  const due = normalizeDueDate(dueDate);
+  const submitted = submittedAt ? new Date(submittedAt) : new Date();
+  if (!due) return 'submitted';
+  return submitted.getTime() > due.getTime() ? 'late' : 'submitted';
+}
+
 async function notifyAssignmentPublished(batch: string | null | undefined, title: string) {
   if (!batch) return;
   const students = await User.find({ role: 'student', assignedClass: batch }).select('_id').lean();
@@ -116,10 +126,8 @@ export async function submitAssignment(req: AuthRequest, res: Response) {
   const assignment = await Assignment.findById(aid).lean();
   if (!assignment) return fail(res, 404, 'Assignment not found');
 
-  const due = normalizeDueDate(assignment.due_date);
-  if (due && Date.now() > due.getTime()) {
-    return fail(res, 400, 'Deadline has passed. Submission editing is closed.');
-  }
+  // Practice-mode submissions are allowed after the due date.
+  // The student UI intentionally exposes "Practice Submit" for overdue assignments.
 
   const existing = await AssignmentSubmission.findOne({ assignment_id: aid, student_id: sid });
   let sub;
@@ -161,6 +169,9 @@ export async function submitAssignment(req: AuthRequest, res: Response) {
 }
 
 export async function listSubmissions(req: AuthRequest, res: Response) {
+  const assignment = await Assignment.findById(req.params.id).select('due_date').lean();
+  if (!assignment) return fail(res, 404, 'Assignment not found');
+
   const items = await AssignmentSubmission.find({
     assignment_id: new Types.ObjectId(req.params.id),
   }).lean();
@@ -180,6 +191,8 @@ export async function listSubmissions(req: AuthRequest, res: Response) {
     student_id: String(s.student_id),
     student_name: studentMap.get(String(s.student_id))?.name ?? null,
     student_email: studentMap.get(String(s.student_id))?.email ?? null,
+    status: getSubmissionStatus((assignment as any).due_date, s.submitted_at),
+    is_late: getSubmissionStatus((assignment as any).due_date, s.submitted_at) === 'late',
   }));
   return ok(res, out);
 }
@@ -188,7 +201,25 @@ export async function mySubmissions(req: AuthRequest, res: Response) {
   if (!req.authUser) return fail(res, 401, 'Unauthorized');
   const sid = new Types.ObjectId(req.authUser.id);
   const items = await AssignmentSubmission.find({ student_id: sid }).sort({ submitted_at: -1 }).lean();
-  const out = (items as any[]).map((s) => ({ ...s, id: String(s._id), assignment_id: String(s.assignment_id) }));
+  const assignmentIds = [...new Set((items as any[]).map((s) => String(s.assignment_id)))];
+  const assignments = await Assignment.find({
+    _id: { $in: assignmentIds.map((id) => new Types.ObjectId(id)) },
+  })
+    .select('_id due_date')
+    .lean();
+  const dueDateMap = new Map<string, Date | null>();
+  (assignments as any[]).forEach((a) => dueDateMap.set(String(a._id), (a.due_date ?? null) as Date | null));
+
+  const out = (items as any[]).map((s) => {
+    const status = getSubmissionStatus(dueDateMap.get(String(s.assignment_id)), s.submitted_at);
+    return {
+      ...s,
+      id: String(s._id),
+      assignment_id: String(s.assignment_id),
+      status,
+      is_late: status === 'late',
+    };
+  });
   return ok(res, out);
 }
 
