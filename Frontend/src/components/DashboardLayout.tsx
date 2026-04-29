@@ -15,6 +15,7 @@ const studentNavItems = [
   { icon: BookOpen, label: "Lectures", path: "/lectures" },
   { icon: FileText, label: "Assignments", path: "/assignments" },
   { icon: PenTool, label: "Exams", path: "/exams" },
+  { icon: School, label: "Classes", path: "/classes" },
   { icon: Clock, label: "Timetable", path: "/timetable" },
   { icon: ClipboardCheck, label: "Attendance", path: "/attendance" },
   { icon: CalendarOff, label: "Leave", path: "/leave-requests" },
@@ -136,7 +137,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const playNotificationBeep = async () => {
     if (localStorage.getItem("learnx_notification_sound") === "off") return;
     try {
-      const audioWindow = window as Window & { webkitAudioContext?: typeof AudioContext };
+      const audioWindow = window as Window & { 
+        AudioContext?: typeof AudioContext; 
+        webkitAudioContext?: typeof AudioContext 
+      };
       const Ctx = audioWindow.AudioContext || audioWindow.webkitAudioContext;
       if (!Ctx) return;
       if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {

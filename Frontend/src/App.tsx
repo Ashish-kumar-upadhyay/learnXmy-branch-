@@ -30,6 +30,7 @@ import Timetable from "./pages/Timetable";
 import ExamsPage from "./pages/Exams";
 import FeeManagement from "./pages/FeeManagement";
 import SupportTickets from "./pages/SupportTickets";
+import Classes from "./pages/Classes";
 import Features from "./pages/Features";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
@@ -115,6 +116,7 @@ const App = () => (
             <Route path="/timetable" element={<ProtectedRoute><DashboardLayout><Timetable /></DashboardLayout></ProtectedRoute>} />
             <Route path="/exams" element={<ProtectedRoute><DashboardLayout><ExamsPage /></DashboardLayout></ProtectedRoute>} />
             <Route path="/fees" element={<ProtectedRoute><DashboardLayout><FeeManagement /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/classes" element={<ProtectedRoute><DashboardLayout><Classes /></DashboardLayout></ProtectedRoute>} />
             <Route path="/teacher" element={<ProtectedRoute><DashboardLayout><TeacherDashboard /></DashboardLayout></ProtectedRoute>} />
             <Route path="/teacher-attendance" element={<ProtectedRoute><DashboardLayout><TeacherStudentAttendance /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><DashboardLayout><AdminDashboard /></DashboardLayout></ProtectedRoute>} />

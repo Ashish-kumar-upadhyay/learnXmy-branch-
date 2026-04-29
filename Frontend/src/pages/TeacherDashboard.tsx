@@ -30,15 +30,21 @@ import { buttonVariants } from "@/components/ui/button";
 
 type ClassRow = {
   id: string;
+  name?: string;
   title: string;
   subject: string;
   batch: string | null;
   description: string | null;
+  schedule?: string;
   scheduled_at: string;
   duration_minutes: number;
+  duration?: number;
   location: string | null;
-  status: string;
+  status: 'scheduled' | 'completed' | 'cancelled';
   created_at: string;
+  teacher_id: string;
+  teacher_name?: string;
+  teacher_email?: string;
 };
 
 type AssignmentRow = {
@@ -76,6 +82,16 @@ const TEACHER_TAB_KEYS = [
 type TeacherTabKey = (typeof TEACHER_TAB_KEYS)[number];
 function isTeacherTabKey(v: string | null): v is TeacherTabKey {
   return !!v && (TEACHER_TAB_KEYS as readonly string[]).includes(v);
+}
+
+interface TeacherData {
+  id: string;
+  email: string;
+  full_name: string;
+  avatar_url?: string | null;
+  batch?: string | null;
+  class_name?: string | null;
+  roles?: string[];
 }
 
 type StudentProfile = {
@@ -220,7 +236,7 @@ export default function TeacherDashboard() {
     const [c, a, n, s, myAtt, myLv, lec] = await Promise.all([
       (async () => {
         if (!accessToken) return { data: [] as any[] };
-        const res = await api<any[]>(`/api/classes/teacher/${encodeURIComponent(user!.id)}`, {
+        const res = await api<any[]>(`/api/classes`, {
           method: "GET",
           accessToken,
         });
@@ -228,7 +244,7 @@ export default function TeacherDashboard() {
       })(),
       (async () => {
         if (!accessToken) return { data: [] as any[] };
-        const res = await api<any[]>(`/api/assignments?teacher_id=${encodeURIComponent(user!.id)}`, {
+        const res = await api<any[]>(`/api/assignments`, {
           method: "GET",
           accessToken,
         });
@@ -270,13 +286,41 @@ export default function TeacherDashboard() {
     ]);
     if (lec.data) setLecturesList(lec.data);
     if (c.data) {
-      // Map backend class fields to UI shape
-      const mapped = (c.data as any[]).map((cls) => ({
-        ...cls,
-        scheduled_at: cls.scheduled_at ?? cls.schedule ?? cls.scheduled_at,
-        duration_minutes: cls.duration_minutes ?? cls.duration ?? cls.duration_minutes ?? 60,
-      }));
-      setClasses(mapped);
+      // Fetch teacher information for each class and map backend class fields to UI shape
+      const classesWithTeachers = await Promise.all(
+        (c.data as any[]).map(async (cls) => {
+          try {
+            const teacherResponse = await api<TeacherData>(`/api/users/${cls.teacher_id}`, {
+              method: "GET",
+              accessToken,
+            });
+            
+            const teacherData = teacherResponse.status === 200 ? teacherResponse.data : null;
+            
+            return {
+              ...cls,
+              scheduled_at: cls.schedule ? new Date(cls.schedule).toISOString() : cls.scheduled_at,
+              duration_minutes: cls.duration ?? cls.duration_minutes ?? 60,
+              subject: cls.subject || cls.batch || 'General',
+              batch: cls.batch || null,
+              teacher_name: teacherData?.full_name || 'Unknown Teacher',
+              teacher_email: teacherData?.email || '',
+            };
+          } catch (error) {
+            console.error(`Failed to fetch teacher for class ${cls.id}:`, error);
+            return {
+              ...cls,
+              scheduled_at: cls.schedule ? new Date(cls.schedule).toISOString() : cls.scheduled_at,
+              duration_minutes: cls.duration ?? cls.duration_minutes ?? 60,
+              subject: cls.subject || cls.batch || 'General',
+              batch: cls.batch || null,
+              teacher_name: 'Unknown Teacher',
+              teacher_email: '',
+            };
+          }
+        })
+      );
+      setClasses(classesWithTeachers);
     }
     if (a.data) setAssignments(a.data);
     if (n.data) setAnnouncements(n.data);

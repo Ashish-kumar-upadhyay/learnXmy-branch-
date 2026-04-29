@@ -469,36 +469,10 @@ function App() {
                   {/* Overlay Effects */}
                   <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-                    <motion.div
-                      className="absolute top-4 left-4 flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md px-3 py-1.5 border border-white/20"
-                      animate={{ opacity: [0.7, 1, 0.7] }}
-                      transition={{ duration: 3, repeat: Infinity }}
-                    >
-                      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                      <span className="text-xs text-white font-medium">LIVE DEMO</span>
-                    </motion.div>
                   </div>
                 </div>
               </GlassPanel>
 
-              {/* Floating Video Features */}
-              <motion.div
-                className="absolute -top-4 -right-4 bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-xl border border-white/20 dark:border-white/10"
-                initial={{ opacity: 0, x: 20, y: -20 }}
-                whileInView={{ opacity: 1, x: 0, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
-                    <ShieldCheck className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">Secure Platform</p>
-                    <p className="text-xs text-slate-600 dark:text-slate-400">End-to-end encryption</p>
-                  </div>
-                </div>
-              </motion.div>
 
                           </motion.div>
 

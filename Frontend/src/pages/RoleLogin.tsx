@@ -75,27 +75,13 @@ export default function RoleLogin() {
   const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [waitingApproval, setWaitingApproval] = useState(false);
   const [highlightInputs, setHighlightInputs] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const [rateLimitMessage, setRateLimitMessage] = useState("");
 
   const validRole = (role && role in roleConfig ? role : "student") as RoleKey;
   const config = roleConfig[validRole];
   const RoleIcon = config.icon;
-
-  // Rate limiting helper function
-  const getRetryDelay = (attemptNumber: number) => {
-    // Exponential backoff: 2^attempt seconds, max 60 seconds
-    const delay = Math.min(Math.pow(2, attemptNumber), 60);
-    return delay * 1000; // Convert to milliseconds
-  };
-
-  const isRateLimitError = (message: string) => {
-    return message.toLowerCase().includes("too many requests") || 
-           message.toLowerCase().includes("rate limit") ||
-           message.toLowerCase().includes("try again later");
-  };
 
   // Clear all input fields when component mounts
   useEffect(() => {
@@ -104,12 +90,10 @@ export default function RoleLogin() {
     setTeacherLoginCode("");
     setPassword("");
     setFullName("");
-    setRetryCount(0);
-    setRateLimitMessage("");
   }, [role]);
 
   const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
-    setLoading(true);
+    setDemoLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
@@ -137,7 +121,7 @@ export default function RoleLogin() {
         toast.error(msg);
       }
     } finally {
-      setLoading(false);
+      setDemoLoading(false);
     }
   };
 
@@ -226,24 +210,24 @@ export default function RoleLogin() {
       </div>
 
       {/* ===== LEFT SIDE - Illustration ===== */}
-      <motion.div
-        initial={{ opacity: 0, x: -40 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.7, ease: "easeOut" }}
+      <div
+        // initial={{ opacity: 0, x: -40 }}
+        // animate={{ opacity: 1, x: 0 }}
+        // transition={{ duration: 0.7, ease: "easeOut" }}
         className="hidden lg:flex w-[42%] relative overflow-hidden items-center justify-center"
         style={{ background: config.bgGradient }}
       >
         {/* Floating glass shapes with enhanced animations */}
         <div className="absolute inset-0 overflow-hidden">
           {/* Main floating elements with enhanced 3D effects */}
-          <motion.div
-            animate={{ 
-              y: [0, -30, 0], 
-              rotate: [0, 10, 0], 
-              scale: [1, 1.1, 1],
-              z: [0, 50, 0]
-            }}
-            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+          <div
+            // animate={{ 
+            //   y: [0, -30, 0], 
+            //   rotate: [0, 10, 0], 
+            //   scale: [1, 1.1, 1],
+            //   z: [0, 50, 0]
+            // }}
+            // transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
             className="absolute top-[10%] left-[8%] w-36 h-36 rounded-3xl border border-white/15 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md shadow-2xl"
             style={{ 
               transform: "rotate(15deg)",
@@ -253,68 +237,68 @@ export default function RoleLogin() {
           >
             <div className="absolute inset-2 rounded-2xl bg-gradient-to-br from-primary/20 to-transparent" />
             {/* Inner 3D layer */}
-            <motion.div
-              animate={{ rotateY: [0, 360] }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            <div
+              // animate={{ rotateY: [0, 360] }}
+              // transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
               className="absolute inset-4 rounded-xl bg-gradient-to-br from-white/5 to-transparent backdrop-blur-sm"
               style={{ transformStyle: "preserve-3d" }}
             />
-          </motion.div>
+          </div>
           
-          <motion.div
-            animate={{ y: [0, 25, 0], rotate: [0, -8, 0], x: [0, -10, 0] }}
-            transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+          <div
+            // animate={{ y: [0, 25, 0], rotate: [0, -8, 0], x: [0, -10, 0] }}
+            // transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
             className="absolute bottom-[25%] right-[12%] w-28 h-28 rounded-2xl border border-white/15 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md shadow-2xl"
             style={{ transform: "rotate(-12deg)" }}
           >
             <div className="absolute inset-2 rounded-xl bg-gradient-to-br from-violet-500/20 to-transparent" />
-          </motion.div>
+          </div>
           
-          <motion.div
-            animate={{ y: [0, 15, 0], x: [0, 8, 0], scale: [1, 0.9, 1] }}
-            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+          <div
+            // animate={{ y: [0, 15, 0], x: [0, 8, 0], scale: [1, 0.9, 1] }}
+            // transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 3 }}
             className="absolute top-[50%] left-[20%] w-24 h-24 rounded-2xl border border-white/15 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md shadow-2xl"
           >
             <div className="absolute inset-2 rounded-xl bg-gradient-to-br from-emerald-500/20 to-transparent" />
-          </motion.div>
+          </div>
           
           {/* Small decorative elements */}
-          <motion.div
-            animate={{ rotate: [0, 360], scale: [1, 1.2, 1] }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          <div
+            // animate={{ rotate: [0, 360], scale: [1, 1.2, 1] }}
+            // transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
             className="absolute top-[15%] right-[25%] w-8 h-8 rounded-full bg-gradient-to-r from-primary/30 to-violet-500/30 backdrop-blur-sm"
           />
-          <motion.div
-            animate={{ rotate: [0, -360], opacity: [0.3, 0.8, 0.3] }}
-            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+          <div
+            // animate={{ rotate: [0, -360], opacity: [0.3, 0.8, 0.3] }}
+            // transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
             className="absolute bottom-[35%] left-[30%] w-6 h-6 rounded-full bg-gradient-to-r from-amber-500/40 to-orange-500/40 backdrop-blur-sm"
           />
-          <motion.div
-            animate={{ y: [0, -8, 0], opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          <div
+            // animate={{ y: [0, -8, 0], opacity: [0.5, 1, 0.5] }}
+            // transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             className="absolute top-[60%] right-[35%] w-4 h-4 rounded-full bg-gradient-to-r from-rose-500/50 to-pink-500/50 backdrop-blur-sm"
           />
 
           {/* Enhanced blur circles with gradients */}
-          <motion.div
-            animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0.7, 0.4] }}
-            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          <div
+            // animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0.7, 0.4] }}
+            // transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
             className="absolute top-[20%] right-[15%] w-56 h-56 rounded-full blur-[100px]"
             style={{ 
               background: `radial-gradient(circle, ${config.glowColor}, transparent)`,
             }}
           />
-          <motion.div
-            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          <div
+            // animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+            // transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
             className="absolute bottom-[25%] left-[10%] w-44 h-44 rounded-full blur-[80px]"
             style={{ 
               background: `radial-gradient(circle, ${config.glowColor}, transparent)`,
             }}
           />
-          <motion.div
-            animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.5, 0.2] }}
-            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 4 }}
+          <div
+            // animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.5, 0.2] }}
+            // transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 4 }}
             className="absolute top-[45%] left-[40%] w-32 h-32 rounded-full blur-[60px]"
             style={{ 
               background: `radial-gradient(circle, ${config.glowColor}, transparent)`,
@@ -327,22 +311,22 @@ export default function RoleLogin() {
           {/* Enhanced particle system with dynamic movements */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             {[...Array(12)].map((_, i) => (
-              <motion.div
+              <div
                 key={i}
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ 
-                  opacity: [0, 0.8, 0],
-                  scale: [0, 1, 0],
-                  y: [0, -30, -60],
-                  x: [0, Math.sin(i) * 20, Math.sin(i) * 40],
-                  rotate: [0, 180, 360]
-                }}
-                transition={{ 
-                  duration: 4 + Math.random() * 2,
-                  repeat: Infinity,
-                  ease: "easeOut",
-                  delay: i * 0.3
-                }}
+                // initial={{ opacity: 0, scale: 0 }}
+                // animate={{ 
+                //   opacity: [0, 0.8, 0],
+                //   scale: [0, 1, 0],
+                //   y: [0, -30, -60],
+                //   x: [0, Math.sin(i) * 20, Math.sin(i) * 40],
+                //   rotate: [0, 180, 360]
+                // }}
+                // transition={{ 
+                //   duration: 4 + Math.random() * 2,
+                //   repeat: Infinity,
+                //   ease: "easeOut",
+                //   delay: i * 0.3
+                // }}
                 className="absolute rounded-full"
                 style={{
                   left: `${15 + i * 7}%`,
@@ -357,53 +341,53 @@ export default function RoleLogin() {
             
             {/* Orbital particles */}
             {[...Array(6)].map((_, i) => (
-              <motion.div
+              <div
                 key={`orbital-${i}`}
-                animate={{
-                  rotate: [0, 360],
-                }}
-                transition={{
-                  duration: 15 + i * 2,
-                  repeat: Infinity,
-                  ease: "linear"
-                }}
+                // animate={{
+                //   rotate: [0, 360],
+                // }}
+                // transition={{
+                //   duration: 15 + i * 2,
+                //   repeat: Infinity,
+                //   ease: "linear"
+                // }}
                 className="absolute top-1/2 left-1/2 w-px h-px"
                 style={{
                   transformOrigin: `${-100 + i * 40}px center`
                 }}
               >
-                <motion.div
-                  animate={{
-                    scale: [0.5, 1.5, 0.5],
-                    opacity: [0.3, 1, 0.3]
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
+                <div
+                  // animate={{
+                  //   scale: [0.5, 1.5, 0.5],
+                  //   opacity: [0.3, 1, 0.3]
+                  // }}
+                  // transition={{
+                  //   duration: 2,
+                  //   repeat: Infinity,
+                  //   ease: "easeInOut"
+                  // }}
                   className="w-2 h-2 rounded-full"
                   style={{
                     background: config.glowColor,
                     filter: 'blur(0.3px)'
                   }}
                 />
-              </motion.div>
+              </div>
             ))}
           </div>
           
           {/* Glowing icon with enhanced 3D effects */}
-          <motion.div
-            initial={{ scale: 0.6, opacity: 0, rotate: -10 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+          <div
+            // initial={{ scale: 0.6, opacity: 0, rotate: -10 }}
+            // animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            // transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
             className="relative mx-auto mb-10"
             style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
           >
             {/* Enhanced rotating rings with 3D depth */}
-            <motion.div
-              animate={{ rotateX: [0, 360], rotateY: [0, 360] }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            <div
+              // animate={{ rotateX: [0, 360], rotateY: [0, 360] }}
+              // transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
               className="absolute inset-0 w-36 h-36 mx-auto rounded-3xl"
               style={{ 
                 background: `conic-gradient(from 0deg, transparent, ${config.glowColor}, transparent)`,
@@ -411,9 +395,9 @@ export default function RoleLogin() {
                 transformStyle: "preserve-3d"
               }}
             />
-            <motion.div
-              animate={{ rotateX: [360, 0], rotateZ: [0, 360] }}
-              transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+            <div
+              // animate={{ rotateX: [360, 0], rotateZ: [0, 360] }}
+              // transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
               className="absolute inset-0 w-32 h-32 mx-auto rounded-2xl"
               style={{ 
                 background: `conic-gradient(from 180deg, transparent, ${config.glowColor}, transparent)`,
@@ -423,34 +407,34 @@ export default function RoleLogin() {
             />
             
             {/* Enhanced pulsing glow with multiple layers */}
-            <motion.div
-              animate={{ 
-                scale: [1, 1.4, 1],
-                opacity: [0.3, 0.8, 0.3],
-                rotate: [0, 180, 360]
-              }}
-              transition={{ 
-                duration: 4,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
+            <div
+              // animate={{ 
+              //   scale: [1, 1.4, 1],
+              //   opacity: [0.3, 0.8, 0.3],
+              //   rotate: [0, 180, 360]
+              // }}
+              // transition={{ 
+              //   duration: 4,
+              //   repeat: Infinity,
+              //   ease: "easeInOut"
+              // }}
               className="absolute inset-0 w-32 h-32 mx-auto rounded-3xl blur-xl"
               style={{ 
                 background: config.gradient,
                 transformStyle: "preserve-3d"
               }}
             />
-            <motion.div
-              animate={{ 
-                scale: [1.2, 1.6, 1.2],
-                opacity: [0.2, 0.5, 0.2]
-              }}
-              transition={{ 
-                duration: 6,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 2
-              }}
+            <div
+              // animate={{ 
+              //   scale: [1.2, 1.6, 1.2],
+              //   opacity: [0.2, 0.5, 0.2]
+              // }}
+              // transition={{ 
+              //   duration: 6,
+              //   repeat: Infinity,
+              //   ease: "easeInOut",
+              //   delay: 2
+              // }}
               className="absolute inset-0 w-36 h-36 mx-auto rounded-3xl blur-2xl"
               style={{ 
                 background: config.gradient,
@@ -459,94 +443,94 @@ export default function RoleLogin() {
             />
             
             {/* Main icon container with 3D hover effects */}
-            <motion.div
-              whileHover={{ 
-                rotateY: 15,
-                rotateX: -15,
-                scale: 1.05,
-                z: 50
-              }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
+            <div
+              // whileHover={{ 
+              //   rotateY: 15,
+              //   rotateX: -15,
+              //   scale: 1.05,
+              //   z: 50
+              // }}
+              // transition={{ duration: 0.3, ease: "easeOut" }}
               className="relative w-32 h-32 mx-auto rounded-3xl flex items-center justify-center border-2 border-white/30 backdrop-blur-md shadow-2xl cursor-pointer"
               style={{ 
                 background: config.gradient,
                 transformStyle: "preserve-3d"
               }}
             >
-              <motion.div
-                animate={{ 
-                  scale: [1, 1.15, 1],
-                  opacity: [0.6, 1, 0.6],
-                  rotate: [0, 5, -5, 0]
-                }}
-                transition={{ 
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
+              <div
+                // animate={{ 
+                //   scale: [1, 1.15, 1],
+                //   opacity: [0.6, 1, 0.6],
+                //   rotate: [0, 5, -5, 0]
+                // }}
+                // transition={{ 
+                //   duration: 3,
+                //   repeat: Infinity,
+                //   ease: "easeInOut"
+                // }}
                 className="absolute inset-2 rounded-2xl bg-gradient-to-br from-white/20 to-transparent"
                 style={{ transformStyle: "preserve-3d" }}
               />
               
-              <motion.div
-                animate={{ rotate: [0, 8, -8, 0], y: [0, -2, 0] }}
-                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              <div
+                // animate={{ rotate: [0, 8, -8, 0], y: [0, -2, 0] }}
+                // transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
                 className="relative z-10"
                 style={{ transformStyle: "preserve-3d" }}
               >
                 <RoleIcon className="w-16 h-16 text-white drop-shadow-2xl" />
                 {/* Icon glow effect */}
-                <motion.div
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                <div
+                  // animate={{ opacity: [0.5, 1, 0.5] }}
+                  // transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                   className="absolute inset-0 blur-xl"
                   style={{ background: config.glowColor }}
                 />
-              </motion.div>
-            </motion.div>
-          </motion.div>
+              </div>
+            </div>
+          </div>
 
           {/* Enhanced heading with staggered animation */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
+          <div
+            // initial={{ opacity: 0, y: 40 }}
+            // animate={{ opacity: 1, y: 0 }}
+            // transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
           >
-            <motion.h2
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.8, duration: 0.6, ease: "easeOut" }}
+            <h2
+              // initial={{ opacity: 0, scale: 0.8 }}
+              // animate={{ opacity: 1, scale: 1 }}
+              // transition={{ delay: 0.8, duration: 0.6, ease: "easeOut" }}
               className="text-5xl font-black bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent tracking-tight mb-4 leading-tight"
             >
               {config.heading}
-            </motion.h2>
+            </h2>
             
             {/* Animated underline */}
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: "100%" }}
-              transition={{ delay: 1.2, duration: 0.8, ease: "easeOut" }}
+            <div
+              // initial={{ width: 0 }}
+              // animate={{ width: "100%" }}
+              // transition={{ delay: 1.2, duration: 0.8, ease: "easeOut" }}
               className="h-1 mx-auto mb-4 rounded-full bg-gradient-to-r from-primary via-violet-500 to-primary"
               style={{ maxWidth: "200px" }}
             />
             
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.4, duration: 0.6, ease: "easeOut" }}
+            <p
+              // initial={{ opacity: 0, y: 20 }}
+              // animate={{ opacity: 1, y: 0 }}
+              // transition={{ delay: 1.4, duration: 0.6, ease: "easeOut" }}
               className="text-muted-foreground text-xl leading-relaxed font-medium"
             >
               {config.subheading}
-            </motion.p>
-          </motion.div>
+            </p>
+          </div>
 
           {/* Enhanced floating elements */}
           <div className="mt-12 space-y-4">
             {/* Feature badges */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 1.8, duration: 0.6, ease: "easeOut" }}
+            <div
+              // initial={{ opacity: 0, x: -30 }}
+              // animate={{ opacity: 1, x: 0 }}
+              // transition={{ delay: 1.8, duration: 0.6, ease: "easeOut" }}
               className="flex flex-wrap justify-center gap-3"
             >
               {[
@@ -555,32 +539,32 @@ export default function RoleLogin() {
                 { icon: Target, label: "Goal Oriented", color: "from-emerald-500 to-teal-500" },
                 { icon: Users, label: "Community Driven", color: "from-violet-500 to-purple-500" },
               ].map((feature, index) => (
-                <motion.div
+                <div
                   key={feature.label}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 2.0 + index * 0.1, duration: 0.5, ease: "easeOut" }}
-                  whileHover={{ scale: 1.05, y: -2 }}
+                  // initial={{ opacity: 0, scale: 0.8 }}
+                  // animate={{ opacity: 1, scale: 1 }}
+                  // transition={{ delay: 2.0 + index * 0.1, duration: 0.5, ease: "easeOut" }}
+                  // whileHover={{ scale: 1.05, y: -2 }}
                   className="flex items-center gap-2 px-3 py-2 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm shadow-lg"
                 >
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br ${feature.color}`}>
                     <feature.icon className="w-4 h-4 text-white" />
                   </div>
                   <span className="text-xs font-medium text-foreground/90">{feature.label}</span>
-                </motion.div>
+                </div>
               ))}
-            </motion.div>
+            </div>
             
             {/* CTA button */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 2.5, duration: 0.6, ease: "easeOut" }}
+            <div
+              // initial={{ opacity: 0, y: 20 }}
+              // animate={{ opacity: 1, y: 0 }}
+              // transition={{ delay: 2.5, duration: 0.6, ease: "easeOut" }}
               className="flex justify-center"
             >
-              <motion.button
-                whileHover={{ scale: 1.05, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.2)" }}
-                whileTap={{ scale: 0.95 }}
+              <button
+                // whileHover={{ scale: 1.05, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.2)" }}
+                // whileTap={{ scale: 0.95 }}
                 onClick={handleGetStartedClick}
                 className="group relative px-8 py-3 rounded-xl font-semibold text-white overflow-hidden transition-all duration-300"
                 style={{ background: config.gradient }}
@@ -590,8 +574,8 @@ export default function RoleLogin() {
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </motion.button>
-            </motion.div>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -603,13 +587,13 @@ export default function RoleLogin() {
           <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
           Back
         </button>
-      </motion.div>
+      </div>
 
       {/* ===== RIGHT SIDE - Login Form ===== */}
-      <motion.div
-        initial={{ opacity: 0, x: 40 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.7, delay: 0.1, ease: "easeOut" }}
+      <div
+        // initial={{ opacity: 0, x: 40 }}
+        // animate={{ opacity: 1, x: 0 }}
+        // transition={{ duration: 0.7, delay: 0.1, ease: "easeOut" }}
         className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-10 relative"
         ref={loginFormRef}
       >
@@ -624,7 +608,11 @@ export default function RoleLogin() {
 
         <div className="w-full max-w-[380px] sm:max-w-[420px]">
           {waitingApproval ? (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
+            <div 
+              // initial={{ opacity: 0, scale: 0.95 }} 
+              // animate={{ opacity: 1, scale: 1 }} 
+              className="text-center"
+            >
               <div className="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center bg-amber-100 dark:bg-amber-950/30">
                 <Clock className="w-10 h-10 text-amber-500" />
               </div>
@@ -636,20 +624,20 @@ export default function RoleLogin() {
               <button onClick={() => { setWaitingApproval(false); setIsLogin(true); }} className="text-sm text-primary hover:text-primary/80 font-semibold transition-colors">
                 ← Back to Sign In
               </button>
-            </motion.div>
+            </div>
           ) : (
           <>
           {/* Header */}
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
+          <div 
+            // initial={{ opacity: 0, y: -20 }}
+            // animate={{ opacity: 1, y: 0 }}
+            // transition={{ duration: 0.6, delay: 0.1 }}
             className="text-center mb-8 animate-fadeInUp"
           >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+            <div
+              // initial={{ scale: 0.8, opacity: 0 }}
+              // animate={{ scale: 1, opacity: 1 }}
+              // transition={{ duration: 0.5, delay: 0.2 }}
               className="relative inline-block"
             >
               <div
@@ -659,36 +647,36 @@ export default function RoleLogin() {
                 <RoleIcon className="w-6 h-6 text-white" />
               </div>
               {/* Glow effect */}
-              <motion.div
+              <div
                 className="absolute inset-0 w-12 h-12 rounded-xl mx-auto -z-10"
                 style={{ 
                   background: config.gradient,
                   filter: 'blur(12px)',
                   opacity: 0.6
                 }}
-                animate={{ 
-                  scale: [1, 1.2, 1],
-                  opacity: [0.6, 0.3, 0.6]
-                }}
-                transition={{ 
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
+                // animate={{ 
+                //   scale: [1, 1.2, 1],
+                //   opacity: [0.6, 0.3, 0.6]
+                // }}
+                // transition={{ 
+                //   duration: 3,
+                //   repeat: Infinity,
+                //   ease: "easeInOut"
+                // }}
               />
-            </motion.div>
-            <motion.h1 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
+            </div>
+            <h1 
+              // initial={{ opacity: 0, y: 10 }}
+              // animate={{ opacity: 1, y: 0 }}
+              // transition={{ duration: 0.5, delay: 0.3 }}
               className="text-2xl font-extrabold text-foreground tracking-tight"
             >
               {isLogin ? `${config.label} Sign In` : `Create ${config.label} Account`}
-            </motion.h1>
-            <motion.p 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
+            </h1>
+            <p 
+              // initial={{ opacity: 0, y: 10 }}
+              // animate={{ opacity: 1, y: 0 }}
+              // transition={{ duration: 0.5, delay: 0.4 }}
               className="text-muted-foreground text-sm mt-1.5"
             >
               {isLogin
@@ -698,14 +686,14 @@ export default function RoleLogin() {
                     ? "Sign in with your Teacher code and password"
                     : "Enter your credentials to continue"
                 : "Fill in your details to get started"}
-            </motion.p>
-          </motion.div>
+            </p>
+          </div>
 
           {/* Login Card with premium glassmorphism - Mobile optimized */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+          <div 
+            // initial={{ opacity: 0, y: 20 }}
+            // animate={{ opacity: 1, y: 0 }}
+            // transition={{ duration: 0.6, delay: 0.2 }}
             className="relative glass-card-3d p-5 sm:p-8 animate-fadeInUp"
             style={{
               background: 'linear-gradient(145deg, hsl(var(--card)), hsl(var(--background)), hsl(var(--muted) / 0.3))',
@@ -715,10 +703,10 @@ export default function RoleLogin() {
             }}
           >
             {/* Card top gradient line */}
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: "100%" }}
-              transition={{ delay: 0.8, duration: 0.8, ease: "easeOut" }}
+            <div 
+              // initial={{ width: 0 }}
+              // animate={{ width: "100%" }}
+              // transition={{ delay: 0.8, duration: 0.8, ease: "easeOut" }}
               className="absolute top-0 left-0 right-0 h-1 rounded-t-xl"
               style={{ background: config.gradient }}
             />
@@ -732,17 +720,17 @@ export default function RoleLogin() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
+                <div
+                  // initial={{ opacity: 0, x: -20 }}
+                  // animate={{ opacity: 1, x: 0 }}
+                  // transition={{ duration: 0.5, delay: 0.3 }}
                 >
                   <label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block font-medium">
                     Full Name
                   </label>
                   <div className="relative group">
                     <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-all duration-300 group-focus-within:text-primary group-focus-within:scale-110" />
-                    <motion.input
+                    <input
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
@@ -751,7 +739,7 @@ export default function RoleLogin() {
                       autoComplete="off"
                       autoCorrect="off"
                       className="input-premium-glass w-full pl-10 pr-4 py-3 rounded-xl text-sm text-foreground placeholder:text-muted-foreground transition-all duration-300"
-                      whileFocus={{ scale: 1.02 }}
+                      // whileFocus={{ scale: 1.02 }}
                       style={{
                         background: 'hsl(var(--muted) / 0.3)',
                         border: '1px solid hsl(var(--border) / 0.5)',
@@ -760,15 +748,15 @@ export default function RoleLogin() {
                     />
                     {/* Enhanced focus ring */}
                     <div className="absolute inset-0 rounded-xl pointer-events-none">
-                      <motion.div 
+                      <div 
                         className="absolute inset-0 rounded-xl border-2 border-primary/20"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        whileFocus={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3 }}
+                        // initial={{ opacity: 0, scale: 0.95 }}
+                        // whileFocus={{ opacity: 1, scale: 1 }}
+                        // transition={{ duration: 0.3 }}
                       />
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )}
 
               {isLogin && validRole === "student" ? (
@@ -778,7 +766,7 @@ export default function RoleLogin() {
                   </label>
                   <div className="relative">
                     <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-all duration-300 focus-within:text-primary focus-within:scale-110" />
-                    <motion.input
+                    <input
                       type="text"
                       value={studentLoginId}
                       onChange={(e) => setStudentLoginId(e.target.value.toUpperCase())}
@@ -792,7 +780,7 @@ export default function RoleLogin() {
                         border: '1px solid hsl(var(--border) / 0.5)',
                         backdropFilter: 'blur(10px)'
                       }}
-                      whileFocus={{ scale: 1.02 }}
+                      // whileFocus={{ scale: 1.02 }}
                     />
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1.5">
@@ -806,7 +794,7 @@ export default function RoleLogin() {
                   </label>
                   <div className="relative">
                     <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-all duration-300 focus-within:text-primary focus-within:scale-110" />
-                    <motion.input
+                    <input
                       type="text"
                       value={teacherLoginCode}
                       onChange={(e) => setTeacherLoginCode(e.target.value.toUpperCase())}
@@ -820,7 +808,7 @@ export default function RoleLogin() {
                         border: '1px solid hsl(var(--border) / 0.5)',
                         backdropFilter: 'blur(10px)'
                       }}
-                      whileFocus={{ scale: 1.02 }}
+                      // whileFocus={{ scale: 1.02 }}
                     />
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1.5">
@@ -834,7 +822,7 @@ export default function RoleLogin() {
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-all duration-300 focus-within:text-primary focus-within:scale-110" />
-                    <motion.input
+                    <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -848,7 +836,7 @@ export default function RoleLogin() {
                         border: '1px solid hsl(var(--border) / 0.5)',
                         backdropFilter: 'blur(10px)'
                       }}
-                      whileFocus={{ scale: 1.02 }}
+                      // whileFocus={{ scale: 1.02 }}
                     />
                   </div>
                 </div>
@@ -860,7 +848,7 @@ export default function RoleLogin() {
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-all duration-300 focus-within:text-primary focus-within:scale-110" />
-                  <motion.input
+                  <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -875,17 +863,17 @@ export default function RoleLogin() {
                       border: '1px solid hsl(var(--border) / 0.5)',
                       backdropFilter: 'blur(10px)'
                     }}
-                    whileFocus={{ scale: 1.02 }}
+                    // whileFocus={{ scale: 1.02 }}
                   />
-                  <motion.button
+                  <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-all duration-300 hover:scale-110"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
+                    // whileHover={{ scale: 1.1 }}
+                    // whileTap={{ scale: 0.9 }}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </motion.button>
+                  </button>
                 </div>
               </div>
 
@@ -900,7 +888,7 @@ export default function RoleLogin() {
                 </div>
               )}
 
-              <motion.button
+              <button
                 type="submit"
                 disabled={loading}
                 className="btn-premium-3d w-full py-3 sm:py-3.5 rounded-xl font-semibold text-sm relative overflow-hidden group"
@@ -908,29 +896,29 @@ export default function RoleLogin() {
                   background: config.gradient,
                   boxShadow: '0 4px 20px hsl(var(--primary) / 0.4), 0 2px 8px hsl(var(--primary) / 0.2)'
                 }}
-                whileHover={{ 
-                  scale: 1.02, 
-                  y: -2,
-                  boxShadow: '0 8px 30px hsl(var(--primary) / 0.5), 0 4px 12px hsl(var(--primary) / 0.3)'
-                }}
-                whileTap={{ scale: 0.98, y: 0 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                // whileHover={{ 
+                //   scale: 1.02, 
+                //   y: -2,
+                //   boxShadow: '0 8px 30px hsl(var(--primary) / 0.5), 0 4px 12px hsl(var(--primary) / 0.3)'
+                // }}
+                // whileTap={{ scale: 0.98, y: 0 }}
+                // transition={{ duration: 0.2, ease: "easeOut" }}
               >
                 {/* Button shimmer effect */}
-                <motion.div
+                <div
                   className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   style={{
                     background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
                     backgroundSize: '200% 100%'
                   }}
-                  animate={{
-                    backgroundPosition: ['200% 0', '-200% 0']
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                    ease: "linear"
-                  }}
+                  // animate={{
+                  //   backgroundPosition: ['200% 0', '-200% 0']
+                  // }}
+                  // transition={{
+                  //   duration: 1.5,
+                  //   repeat: Infinity,
+                  //   ease: "linear"
+                  // }}
                 />
                 
                 {/* Button inner glow */}
@@ -942,9 +930,9 @@ export default function RoleLogin() {
                 <span className="relative z-10 flex items-center justify-center gap-2">
                   {loading ? (
                     <>
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      <div
+                        // animate={{ rotate: 360 }}
+                        // transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                         className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
                       />
                       Loading...
@@ -953,23 +941,23 @@ export default function RoleLogin() {
                 </span>
                 
                 {/* Hover border glow */}
-                <motion.div
+                <div
                   className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   style={{
                     border: '1px solid rgba(255,255,255,0.3)',
                     filter: 'blur(0.5px)'
                   }}
                 />
-              </motion.button>
+              </button>
             </form>
 
-          </motion.div>
+          </div>
 
           {/* Enhanced Demo Accounts - Mobile optimized */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.4 }}
+          <div
+            // initial={{ opacity: 0, y: 16 }}
+            // animate={{ opacity: 1, y: 0 }}
+            // transition={{ delay: 0.5, duration: 0.4 }}
             className="glass-card-3d mt-5 sm:mt-6 p-4 sm:p-5 animate-slideInRight"
             style={{
               background: 'linear-gradient(145deg, hsl(var(--card)), hsl(var(--muted) / 0.2))',
@@ -980,14 +968,14 @@ export default function RoleLogin() {
           >
             {/* Section header with enhanced styling */}
             <div className="flex items-center gap-2 mb-4">
-              <motion.div
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              <div
+                // animate={{ rotate: [0, 10, -10, 0] }}
+                // transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 className="p-1.5 rounded-lg"
                 style={{ background: 'linear-gradient(135deg, hsl(var(--warning)), hsl(var(--warning) / 0.8))' }}
               >
                 <Zap className="w-4 h-4 text-white" />
-              </motion.div>
+              </div>
               <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Quick Demo Access</h3>
             </div>
             
@@ -996,25 +984,25 @@ export default function RoleLogin() {
               {demoAccounts
                 .filter((demo) => demo.role.toLowerCase() === validRole)
                 .map((demo, index) => (
-                <motion.button
+                <button
                   key={demo.role}
                   onClick={() => handleDemoLogin(demo.email, demo.password)}
-                  disabled={loading}
+                  disabled={demoLoading}
                   className="group w-full flex items-center gap-3 p-2.5 sm:p-3 rounded-xl border border-border/30 hover:border-primary/20 transition-all duration-300 text-left disabled:opacity-50 relative overflow-hidden touch-manipulation"
                   style={{
                     background: 'linear-gradient(145deg, hsl(var(--muted) / 0.3), hsl(var(--muted) / 0.1))',
                     backdropFilter: 'blur(8px)',
                     minHeight: '60px'
                   }}
-                  whileHover={{ 
-                    scale: 1.02, 
-                    x: 4,
-                    boxShadow: '0 4px 20px hsl(var(--primary) / 0.1)'
-                  }}
-                  whileTap={{ scale: 0.98 }}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.6 + index * 0.1, duration: 0.3 }}
+                  // whileHover={{ 
+                  //   scale: 1.02, 
+                  //   x: 4,
+                  //   boxShadow: '0 4px 20px hsl(var(--primary) / 0.1)'
+                  // }}
+                  // whileTap={{ scale: 0.98 }}
+                  // initial={{ opacity: 0, x: -20 }}
+                  // animate={{ opacity: 1, x: 0 }}
+                  // transition={{ delay: 0.6 + index * 0.1, duration: 0.3 }}
                 >
                   {/* Hover gradient overlay */}
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
@@ -1024,18 +1012,18 @@ export default function RoleLogin() {
                   />
                   
                   {/* Icon with enhanced styling */}
-                  <motion.div
+                  <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg relative z-10"
                     style={{ background: demo.gradient }}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    transition={{ duration: 0.2 }}
+                    // whileHover={{ scale: 1.1, rotate: 5 }}
+                    // transition={{ duration: 0.2 }}
                   >
                     <demo.icon className="w-5 h-5 text-white" />
                     {/* Icon glow */}
                     <div className="absolute inset-0 rounded-xl blur-md opacity-50" 
                       style={{ background: demo.gradient }} 
                     />
-                  </motion.div>
+                  </div>
                   
                   {/* Text content */}
                   <div className="flex-1 min-w-0 relative z-10">
@@ -1050,28 +1038,41 @@ export default function RoleLogin() {
                   </div>
                   
                   {/* Arrow indicator */}
-                  <motion.div
+                  <div
                     className="text-xs font-semibold text-primary opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center gap-1 relative z-10"
-                    initial={{ x: -10 }}
-                    whileHover={{ x: 0 }}
+                    // initial={{ x: -10 }}
+                    // whileHover={{ x: 0 }}
                   >
-                    Login
-                    <ArrowRight className="w-3 h-3" />
-                  </motion.div>
+                    {demoLoading ? (
+                      <>
+                        <div
+                          // animate={{ rotate: 360 }}
+                          // transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full"
+                        />
+                        Logging...
+                      </>
+                    ) : (
+                      <>
+                        Login
+                        <ArrowRight className="w-3 h-3" />
+                      </>
+                    )}
+                  </div>
                   
                   {/* Subtle border animation */}
-                  <motion.div
+                  <div
                     className="absolute inset-0 rounded-xl border-2 border-primary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                     style={{ borderStyle: 'dashed' }}
                   />
-                </motion.button>
+                </button>
               ))}
             </div>
-          </motion.div>
+          </div>
           </>
           )}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
