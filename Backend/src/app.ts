@@ -31,6 +31,8 @@ import sprintPlanRoutes from './routes/sprint-plan.routes';
 import supportTicketsRoutes from './routes/support-tickets.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import contactRoutes from './routes/contact.routes';
+import aiGradingRoutes from './routes/aiGrading.routes';
+import plagiarismRoutes from './routes/plagiarism.routes';
 import { setupGoogleStrategy } from './auth/google.strategy';
 
 void ensureUploadRoot();
@@ -119,6 +121,8 @@ app.use('/api/lectures', lectureRoutes);
 app.use('/api', sprintPlanRoutes);
 app.use('/api/support-tickets', supportTicketsRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/ai-grading', aiGradingRoutes);
+app.use('/api/plagiarism', plagiarismRoutes);
 
 app.use(errorMiddleware);
 

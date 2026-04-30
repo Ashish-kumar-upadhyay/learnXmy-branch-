@@ -8,9 +8,11 @@ import {
   CalendarPlus, FileText, Users, Megaphone, Plus, Clock,
   MapPin, BookOpen, Trash2, Edit, Send, AlertTriangle, Info, ClipboardCheck,
   ExternalLink, Link2, Star, ChevronDown, ChevronUp, Inbox, Bell, CheckCircle2, XCircle, UserCheck, UserX, School,
-  Fingerprint, CalendarOff, Save, Video, Youtube, Play, X, Loader2
+  Fingerprint, CalendarOff, Save, Video, Youtube, Play, X, Loader2, Bot, Search
 } from "lucide-react";
 import AttendanceMarker from "@/components/AttendanceMarker";
+import AIGradingPanel from "@/components/AIGradingPanel";
+import PlagiarismDetector from "@/components/PlagiarismDetector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -155,6 +157,8 @@ export default function TeacherDashboard() {
   const [addingStudent, setAddingStudent] = useState(false);
   const [attendanceClass, setAttendanceClass] = useState<ClassRow | null>(null);
   const [expandedAssignment, setExpandedAssignment] = useState<string | null>(null);
+  const [showAIGrading, setShowAIGrading] = useState<string | null>(null);
+  const [showPlagiarism, setShowPlagiarism] = useState<string | null>(null);
   const [expandedClassAttendance, setExpandedClassAttendance] = useState<string | null>(null);
   const [gradeInputs, setGradeInputs] = useState<Record<string, { grade: string; feedback: string }>>({});
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
@@ -1370,9 +1374,30 @@ export default function TeacherDashboard() {
                     {/* Submissions expandable */}
                     {isExpanded && subs.length > 0 && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-4 pt-4 border-t border-border/30 space-y-3">
-                        <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-                          <Inbox className="w-4 h-4" /> Student Submissions
-                        </h4>
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                            <Inbox className="w-4 h-4" /> Student Submissions
+                          </h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              {subs.filter(s => s.grade).length} graded / {subs.length} total
+                            </span>
+                            <button
+                              onClick={() => setShowAIGrading(showAIGrading === a.id ? null : a.id)}
+                              className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                            >
+                              <Bot className="w-3 h-3" />
+                              {showAIGrading === a.id ? 'Hide AI' : 'AI Grading'}
+                            </button>
+                            <button
+                              onClick={() => setShowPlagiarism(showPlagiarism === a.id ? null : a.id)}
+                              className="text-xs text-orange-600 hover:text-orange-700 transition-colors flex items-center gap-1"
+                            >
+                              <Search className="w-3 h-3" />
+                              {showPlagiarism === a.id ? 'Hide' : 'Plagiarism'}
+                            </button>
+                          </div>
+                        </div>
                         {subs.map((sub: any, index: number) => {
                           const studentName = sub.student_name || "Unknown Student";
                           const gi = gradeInputs[sub.id] || { grade: sub.grade || "", feedback: sub.feedback || "" };
@@ -1429,6 +1454,43 @@ export default function TeacherDashboard() {
                             </div>
                           );
                         })}
+
+                        {/* AI Grading Panel */}
+                        {showAIGrading === a.id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            className="mt-4 pt-4 border-t border-border/30"
+                          >
+                            <AIGradingPanel
+                              submissions={subs}
+                              assignmentTitle={a.title}
+                              maxScore={a.max_score || 100}
+                              onGradingApplied={(submissionId, grade, feedback) => {
+                                // Refresh the data to show updated grades
+                                fetchAll();
+                              }}
+                            />
+                          </motion.div>
+                        )}
+
+                        {/* Plagiarism Detector Panel */}
+                        {showPlagiarism === a.id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            className="mt-4 pt-4 border-t border-border/30"
+                          >
+                            <PlagiarismDetector
+                              submissions={subs}
+                              assignmentTitle={a.title}
+                              onFlagged={(submissionId) => {
+                                // Refresh data when submission is flagged
+                                fetchAll();
+                              }}
+                            />
+                          </motion.div>
+                        )}
                       </motion.div>
                     )}
                   </motion.div>

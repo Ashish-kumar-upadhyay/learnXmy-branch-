@@ -555,28 +555,7 @@ export default function RoleLogin() {
               ))}
             </div>
             
-            {/* CTA button */}
-            <div
-              // initial={{ opacity: 0, y: 20 }}
-              // animate={{ opacity: 1, y: 0 }}
-              // transition={{ delay: 2.5, duration: 0.6, ease: "easeOut" }}
-              className="flex justify-center"
-            >
-              <button
-                // whileHover={{ scale: 1.05, boxShadow: "0 10px 30px -10px rgba(0,0,0,0.2)" }}
-                // whileTap={{ scale: 0.95 }}
-                onClick={handleGetStartedClick}
-                className="group relative px-8 py-3 rounded-xl font-semibold text-white overflow-hidden transition-all duration-300"
-                style={{ background: config.gradient }}
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  Get Started
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </button>
-            </div>
-          </div>
+                      </div>
         </div>
 
         {/* Back button */}

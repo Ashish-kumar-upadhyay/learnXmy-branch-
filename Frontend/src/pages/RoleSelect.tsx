@@ -147,15 +147,8 @@ export default function RoleSelect() {
 
               <div className="flex items-center justify-center gap-2.5">
                 <button
-                  onClick={() => roleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
-                  className="group bg-primary text-primary-foreground px-4 py-2 rounded-xl font-semibold text-[10px] hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 shadow-md flex items-center gap-2 dark:shadow-primary/30"
-                >
-                  Get Started
-                  <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                </button>
-                <button
                   onClick={() => navigate("/features")}
-                  className="bg-white/70 dark:bg-white/10 border border-border/60 dark:border-white/15 backdrop-blur-sm px-4 py-2 rounded-xl font-semibold text-[10px] text-foreground dark:text-slate-100 hover:bg-card/90 dark:hover:bg-white/15 transition-all duration-300"
+                  className="group bg-primary text-primary-foreground px-4 py-2 rounded-xl font-semibold text-[10px] hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 shadow-md flex items-center gap-2 dark:shadow-primary/30"
                 >
                   Learn More
                 </button>
@@ -252,15 +245,8 @@ export default function RoleSelect() {
 
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => roleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
-                  className="group bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 shadow-md flex items-center gap-2 dark:shadow-primary/30"
-                >
-                  Get Started
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                </button>
-                <button
                   onClick={() => navigate("/features")}
-                  className="bg-white/70 dark:bg-white/10 border border-border/60 dark:border-white/15 backdrop-blur-sm px-8 py-3 rounded-xl font-semibold text-sm text-foreground dark:text-slate-100 hover:bg-card/90 dark:hover:bg-white/15 transition-all duration-300"
+                  className="group bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 shadow-md flex items-center gap-2 dark:shadow-primary/30"
                 >
                   Learn More
                 </button>
