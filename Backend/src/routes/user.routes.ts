@@ -1,10 +1,10 @@
-import * as user from '../controllers/user.controller';
+import * as user from '../controllers/user.controller.js';
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { requireRoles } from '../middleware/role.middleware';
-import { validateBody } from '../middleware/validation.middleware';
-import { createUserAdminSchema, roleAssignSchema } from '../utils/validation';
-import { cacheMiddleware } from '../middleware/cache.middleware';
+import { authMiddleware } from '../middleware/auth.middleware.js';
+import { requireRoles } from '../middleware/role.middleware.js';
+import { validateBody } from '../middleware/validation.middleware.js';
+import { createUserAdminSchema, roleAssignSchema } from '../utils/validation.js';
+import { cacheMiddleware } from '../middleware/cache.middleware.js';
 
 const r = Router();
 r.use(authMiddleware);

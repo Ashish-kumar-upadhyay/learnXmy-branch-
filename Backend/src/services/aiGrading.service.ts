@@ -1,6 +1,6 @@
-import { AssignmentSubmission } from '../models/AssignmentSubmission.model';
-import { Assignment } from '../models/Assignment.model';
-import { User } from '../models/User.model';
+import { AssignmentSubmission } from '../models/AssignmentSubmission.model.js';
+import { Assignment } from '../models/Assignment.model.js';
+import { User } from '../models/User.model.js';
 
 export interface AIGradingResult {
   suggested_grade: number;
@@ -153,8 +153,8 @@ Be fair, constructive, and educational in your assessment.
         }),
       });
 
-      const data = await response.json();
-      return JSON.parse(data.choices[0].message.content);
+      const data: any = await response.json();
+      return JSON.parse(data.choices[0].message.content || '{}');
     } catch (error) {
       console.error('AI API call failed:', error);
       return this.simulateAIResponse(prompt);

@@ -1,10 +1,10 @@
 import { Response } from 'express';
 import { Types } from 'mongoose';
-import { AuthRequest } from '../types/auth.types';
-import { AssignmentSubmission } from '../models/AssignmentSubmission.model';
-import { Assignment } from '../models/Assignment.model';
-import { plagiarismService, PlagiarismResult } from '../services/plagiarism.service';
-import { ok, fail } from '../utils/response';
+import { AuthRequest } from '../types/auth.types.js';
+import { AssignmentSubmission } from '../models/AssignmentSubmission.model.js';
+import { Assignment } from '../models/Assignment.model.js';
+import { plagiarismService, PlagiarismResult } from '../services/plagiarism.service.js';
+import { ok, fail } from '../utils/response.js';
 
 /**
  * Analyze a single submission for plagiarism
@@ -285,7 +285,8 @@ export async function getPlagiarismReport(req: AuthRequest, res: Response) {
     }
 
     // Get student information
-    const student = await (await import('../models/User.model')).User.findById(
+    const { User } = await import('../models/User.model.js');
+    const student = await User.findById(
       submission.student_id
     ).select('name email').lean();
 
@@ -362,11 +363,11 @@ export async function flagForReview(req: AuthRequest, res: Response) {
 
     // Create notification for admin (if teacher flagged)
     if (!req.authUser?.roles.includes('admin')) {
-      const { Notification } = await import('../models/Notification.model');
-      const { notifyUser } = await import('../realtime');
+      const { Notification } = await import('../models/Notification.model.js');
+      const { notifyUser } = await import('../realtime.js');
       
       // Find admin users
-      const { User } = await import('../models/User.model');
+      const { User } = await import('../models/User.model.js');
       const admins = await User.find({ roles: { $in: ['admin'] } }).select('_id').lean();
       
       if (admins.length > 0) {
@@ -382,7 +383,7 @@ export async function flagForReview(req: AuthRequest, res: Response) {
         
         // Send real-time notifications
         await Promise.all(
-          insertedDocs.map((doc) => {
+          insertedDocs.map((doc: any) => {
             const uid = String(doc.user_id);
             notifyUser(uid, 'notification', {
               id: String(doc._id),

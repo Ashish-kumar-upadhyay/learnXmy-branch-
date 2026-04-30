@@ -8,6 +8,8 @@ export interface IAssignmentSubmission extends Document {
   feedback?: string;
   submitted_at: Date;
   graded_at?: Date;
+  plagiarism_analysis?: any;
+  academic_review_flag?: any;
 }
 
 const AssignmentSubmissionSchema = new Schema<IAssignmentSubmission>(

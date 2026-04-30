@@ -5,8 +5,8 @@ import {
   getGradingStats,
   applyAIGrading,
   getClassGradingInsights,
-} from '../controllers/aiGrading.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+} from '../controllers/aiGrading.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 
 const router = Router();
 

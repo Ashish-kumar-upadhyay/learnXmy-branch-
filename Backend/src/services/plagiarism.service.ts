@@ -1,6 +1,6 @@
-import { AssignmentSubmission } from '../models/AssignmentSubmission.model';
-import { Assignment } from '../models/Assignment.model';
-import { User } from '../models/User.model';
+import { AssignmentSubmission } from '../models/AssignmentSubmission.model.js';
+import { Assignment } from '../models/Assignment.model.js';
+import { User } from '../models/User.model.js';
 
 export interface PlagiarismResult {
   similarity_score: number;

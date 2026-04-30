@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import passport from 'passport';
-import { env } from '../config/environment';
-import { User } from '../models/User.model';
-import { signAccessToken, signRefreshToken } from '../utils/jwt';
-import type { AppRole } from '../types/auth.types';
+import { env } from '../config/environment.js';
+import { User } from '../models/User.model.js';
+import { signAccessToken, signRefreshToken } from '../utils/jwt.js';
+import type { AppRole } from '../types/auth.types.js';
 
 const r = Router();
 

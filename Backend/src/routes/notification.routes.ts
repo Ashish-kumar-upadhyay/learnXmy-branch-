@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import * as ctrl from '../controllers/notification.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { requireRoles } from '../middleware/role.middleware';
+import * as ctrl from '../controllers/notification.controller.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
+import { requireRoles } from '../middleware/role.middleware.js';
 
 const r = Router();
 r.use(authMiddleware);

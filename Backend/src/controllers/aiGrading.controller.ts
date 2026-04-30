@@ -1,11 +1,11 @@
 import { Response } from 'express';
 import { Types } from 'mongoose';
-import { AuthRequest } from '../types/auth.types';
-import { AssignmentSubmission } from '../models/AssignmentSubmission.model';
-import { Assignment } from '../models/Assignment.model';
-import { User } from '../models/User.model';
-import { aiGradingService, AIGradingResult } from '../services/aiGrading.service';
-import { ok, fail } from '../utils/response';
+import { AuthRequest } from '../types/auth.types.js';
+import { AssignmentSubmission } from '../models/AssignmentSubmission.model.js';
+import { Assignment } from '../models/Assignment.model.js';
+import { User } from '../models/User.model.js';
+import { aiGradingService, AIGradingResult } from '../services/aiGrading.service.js';
+import { ok, fail } from '../utils/response.js';
 
 /**
  * Analyze a single submission with AI
@@ -243,8 +243,8 @@ export async function applyAIGrading(req: AuthRequest, res: Response) {
     // Create notification for student
     const studentId = String(submission.student_id);
     if (applyGrade || applyFeedback) {
-      const { Notification } = await import('../models/Notification.model');
-      const { notifyUser } = await import('../realtime');
+      const { Notification } = await import('../models/Notification.model.js');
+      const { notifyUser } = await import('../realtime.js');
       
       const doc = await Notification.create({
         user_id: studentId,
