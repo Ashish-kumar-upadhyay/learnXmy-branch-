@@ -1,5 +1,13 @@
 User-agent: *
 Allow: /
 
+# Allow all search engines to crawl
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+Crawl-delay: 1
+
 Sitemap: https://learnxplatform.qzz.io/sitemap.xml
-Sitemap: https://learnxplatform.qzz.io/public/sitemap.xml
