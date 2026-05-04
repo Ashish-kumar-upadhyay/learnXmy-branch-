@@ -1,12 +1,12 @@
 import crypto from 'crypto';
-import { User } from '../models/User.model';
-import { UserRole } from '../models/UserRole.model';
-import { hashPassword, verifyPassword } from '../utils/hash';
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
-import { AppRole } from '../types/auth.types';
-import { generateUniqueStudentId } from './studentId.service';
-import { generateUniqueTeacherCode } from './teacherCode.service';
-import { sendWelcomeEmailViaResend } from './mail.service';
+import { User } from '../models/User.model.js';
+import { UserRole } from '../models/UserRole.model.js';
+import { hashPassword, verifyPassword } from '../utils/hash.js';
+import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
+import { AppRole } from '../types/auth.types.js';
+import { generateUniqueStudentId } from './studentId.service.js';
+import { generateUniqueTeacherCode } from './teacherCode.service.js';
+import { sendWelcomeEmailViaResend } from './mail.service.js';
 
 const WELCOME_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 

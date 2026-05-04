@@ -5,35 +5,35 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import session from 'express-session';
 import passport from 'passport';
-import { env } from './config/environment';
-import { errorMiddleware } from './middleware/error.middleware';
-import { ensureUploadRoot } from './services/file.service';
-import { requireDatabaseReady } from './middleware/db-ready.middleware';
+import { env } from './config/environment.js';
+import { errorMiddleware } from './middleware/error.middleware.js';
+import { ensureUploadRoot } from './services/file.service.js';
+import { requireDatabaseReady } from './middleware/db-ready.middleware.js';
 
-import authRoutes from './routes/auth.routes';
-import googleRoutes from './routes/google.routes';
-import userRoutes from './routes/user.routes';
-import classRoutes from './routes/class.routes';
-import assignmentRoutes from './routes/assignment.routes';
-import examRoutes from './routes/exam.routes';
-import attendanceRoutes from './routes/attendance.routes';
-import teacherAttendanceRoutes from './routes/teacher-attendance.routes';
-import feeRoutes from './routes/fee.routes';
-import salaryRoutes from './routes/salary.routes';
-import notificationRoutes from './routes/notification.routes';
-import announcementRoutes from './routes/announcement.routes';
-import leaveRoutes from './routes/leave.routes';
-import aiRoutes from './routes/ai.routes';
-import fileRoutes from './routes/file.routes';
-import timetableRoutes from './routes/timetable.routes';
-import lectureRoutes from './routes/lecture.routes';
-import sprintPlanRoutes from './routes/sprint-plan.routes';
-import supportTicketsRoutes from './routes/support-tickets.routes';
-import analyticsRoutes from './routes/analytics.routes';
-import contactRoutes from './routes/contact.routes';
-import aiGradingRoutes from './routes/aiGrading.routes';
-import plagiarismRoutes from './routes/plagiarism.routes';
-import { setupGoogleStrategy } from './auth/google.strategy';
+import authRoutes from './routes/auth.routes.js';
+import googleRoutes from './routes/google.routes.js';
+import userRoutes from './routes/user.routes.js';
+import classRoutes from './routes/class.routes.js';
+import assignmentRoutes from './routes/assignment.routes.js';
+import examRoutes from './routes/exam.routes.js';
+import attendanceRoutes from './routes/attendance.routes.js';
+import teacherAttendanceRoutes from './routes/teacher-attendance.routes.js';
+import feeRoutes from './routes/fee.routes.js';
+import salaryRoutes from './routes/salary.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
+import announcementRoutes from './routes/announcement.routes.js';
+import leaveRoutes from './routes/leave.routes.js';
+import aiRoutes from './routes/ai.routes.js';
+import fileRoutes from './routes/file.routes.js';
+import timetableRoutes from './routes/timetable.routes.js';
+import lectureRoutes from './routes/lecture.routes.js';
+import sprintPlanRoutes from './routes/sprint-plan.routes.js';
+import supportTicketsRoutes from './routes/support-tickets.routes.js';
+import analyticsRoutes from './routes/analytics.routes.js';
+import contactRoutes from './routes/contact.routes.js';
+import aiGradingRoutes from './routes/aiGrading.routes.js';
+import plagiarismRoutes from './routes/plagiarism.routes.js';
+import { setupGoogleStrategy } from './auth/google.strategy.js';
 
 void ensureUploadRoot();
 setupGoogleStrategy();
@@ -66,21 +66,9 @@ const corsOrigin: cors.CorsOptions['origin'] = (origin, callback) => {
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: env.nodeEnv === 'production' ? 1000 : 5000,
+  max: env.nodeEnv === 'production' ? 300 : 2000,
   standardHeaders: true,
   legacyHeaders: false,
-});
-
-// More lenient rate limiter for auth endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: env.nodeEnv === 'production' ? 100 : 500,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: 'Too many authentication attempts, please try again later.',
-    retryAfter: '15 minutes'
-  }
 });
 
 app.use(
@@ -113,8 +101,8 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/api/contact', contactRoutes);
 app.use('/api', requireDatabaseReady);
 
-app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/auth/google', authLimiter, googleRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/auth/google', googleRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/assignments', assignmentRoutes);
