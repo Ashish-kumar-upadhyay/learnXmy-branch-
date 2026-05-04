@@ -222,6 +222,49 @@ export async function myAnalytics(req: AuthRequest, res: Response) {
   const today = new Date();
   const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+  // First, create a set of all dates that had attendance (any status)
+  const attendanceDatesSet = new Set<string>();
+  attendanceRecords.forEach((record: any) => {
+    const dateKey = new Date(record.date).toDateString();
+    attendanceDatesSet.add(dateKey);
+  });
+
+  // Check for missing days between attendance records
+  const sortedAttendanceDates = Array.from(attendanceDatesSet)
+    .map(dateStr => new Date(dateStr))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  // Find gaps in attendance (missing days)
+  for (let i = 1; i < sortedAttendanceDates.length; i++) {
+    const prevDate = sortedAttendanceDates[i - 1];
+    const currentDate = sortedAttendanceDates[i];
+    const daysDiff = Math.floor((currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // If gap is more than 1 day, mark intermediate days as missed
+    if (daysDiff > 1) {
+      for (let dayOffset = 1; dayOffset < daysDiff; dayOffset++) {
+        const missedDate = new Date(prevDate.getTime() + (dayOffset * 24 * 60 * 60 * 1000));
+        const missedDateKey = missedDate.toDateString();
+        
+        // Only add if within last 30 days and not a weekend (optional)
+        if (missedDate >= thirtyDaysAgo && missedDate <= today) {
+          const attendance = attendanceMap.get(missedDateKey);
+          
+          if (!attendance) {
+            // No attendance record for this day - mark as missed
+            missedDays.push({
+              date: missedDate.toISOString(),
+              status: 'absent', // Default to absent for missing days
+              title: 'Daily Attendance',
+              subject: 'General',
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Also check scheduled classes for unmarked days
   scheduledClasses.forEach((cls: any) => {
     const classDate = new Date(cls.schedule);
     const dateKey = classDate.toDateString();
@@ -295,13 +338,17 @@ export async function myAnalytics(req: AuthRequest, res: Response) {
     missedDays: missedDays.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     unmarkedDays: unmarkedDays.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     attendanceSummary: {
-      totalClasses: scheduledClasses.filter((cls: any) => {
-        const classDate = new Date(cls.schedule);
-        return classDate >= thirtyDaysAgo && classDate <= today;
-      }).length,
-      missedClasses: missedDays.length,
-      unmarkedClasses: unmarkedDays.length
-    }
+          totalClasses: Math.max(
+            attendanceRecords.length, // Actual attendance records
+            scheduledClasses.filter((cls: any) => {
+              const classDate = new Date(cls.schedule);
+              return classDate >= thirtyDaysAgo && classDate <= today;
+            }).length, // Scheduled classes
+            missedDays.length + unmarkedDays.length + attendanceRecords.length // All combined
+          ),
+          missedClasses: missedDays.length,
+          unmarkedClasses: unmarkedDays.length
+        }
   });
 }
 
