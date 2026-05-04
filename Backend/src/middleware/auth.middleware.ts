@@ -1,8 +1,8 @@
 import { NextFunction, Response } from 'express';
-import { User } from '../models/User.model.js';
-import { AuthRequest, AppRole } from '../types/auth.types.js';
-import { verifyAccessToken } from '../utils/jwt.js';
-import { fail } from '../utils/response.js';
+import { User } from '../models/User.model';
+import { AuthRequest, AppRole } from '../types/auth.types';
+import { verifyAccessToken } from '../utils/jwt';
+import { fail } from '../utils/response';
 
 export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;

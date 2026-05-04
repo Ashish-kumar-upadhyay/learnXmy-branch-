@@ -1,11 +1,11 @@
 import { Response } from 'express';
 import { Types } from 'mongoose';
-import { AuthRequest } from '../types/auth.types.js';
-import { AssignmentSubmission } from '../models/AssignmentSubmission.model.js';
-import { Assignment } from '../models/Assignment.model.js';
-import { User } from '../models/User.model.js';
-import { aiGradingService, AIGradingResult } from '../services/aiGrading.service.js';
-import { ok, fail } from '../utils/response.js';
+import { AuthRequest } from '../types/auth.types';
+import { AssignmentSubmission } from '../models/AssignmentSubmission.model';
+import { Assignment } from '../models/Assignment.model';
+import { User } from '../models/User.model';
+import { aiGradingService, AIGradingResult } from '../services/aiGrading.service';
+import { ok, fail } from '../utils/response';
 
 /**
  * Analyze a single submission with AI

@@ -1,4 +1,4 @@
-import { User } from '../models/User.model.js';
+import { User } from '../models/User.model';
 
 /** Format: TCH + YYYY + 6-digit random, e.g. TCH2026123456 */
 export async function generateUniqueTeacherCode(): Promise<string> {

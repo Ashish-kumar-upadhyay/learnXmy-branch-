@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import * as ctrl from '../controllers/analytics.controller.js';
-import { authMiddleware } from '../middleware/auth.middleware.js';
+import * as ctrl from '../controllers/analytics.controller';
+import { authMiddleware } from '../middleware/auth.middleware';
 
 const r = Router();
 r.use(authMiddleware);

@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import * as ctrl from '../controllers/timetable.controller.js';
-import { authMiddleware } from '../middleware/auth.middleware.js';
-import { requireRoles } from '../middleware/role.middleware.js';
+import * as ctrl from '../controllers/timetable.controller';
+import { authMiddleware } from '../middleware/auth.middleware';
+import { requireRoles } from '../middleware/role.middleware';
 
 const r = Router();
 r.use(authMiddleware);

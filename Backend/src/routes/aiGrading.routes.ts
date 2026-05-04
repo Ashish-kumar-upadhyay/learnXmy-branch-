@@ -6,7 +6,7 @@ import {
   applyAIGrading,
   getClassGradingInsights,
 } from '../controllers/aiGrading.controller.js';
-import { authMiddleware } from '../middleware/auth.middleware.js';
+import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
 
