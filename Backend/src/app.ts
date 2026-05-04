@@ -66,9 +66,15 @@ const corsOrigin: cors.CorsOptions['origin'] = (origin, callback) => {
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: env.nodeEnv === 'production' ? 300 : 2000,
+  max: env.nodeEnv === 'production' ? 500 : 5000,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for auth refresh and profile endpoints
+    return req.path.includes('/api/auth/refresh-token') || 
+           req.path.includes('/api/auth/profile') ||
+           req.path.includes('/api/analytics/me');
+  },
 });
 
 app.use(

@@ -50,8 +50,9 @@ export async function myAnalytics(req: AuthRequest, res: Response) {
   if (!req.authUser) return fail(res, 401, 'Unauthorized');
   const uid = new Types.ObjectId(req.authUser.id);
   
-  // Use aggregation for better performance
-  const [userStats, weeklyActivity] = await Promise.all([
+  try {
+    // Use aggregation for better performance with error handling
+    const [userStats, weeklyActivity] = await Promise.all([
     // Get user stats in single aggregation
     User.aggregate([
       { $match: { _id: uid } },
@@ -350,6 +351,32 @@ export async function myAnalytics(req: AuthRequest, res: Response) {
           unmarkedClasses: unmarkedDays.length
         }
   });
+  } catch (error) {
+    console.error('Analytics error:', error);
+    // Return fallback data if aggregation fails
+    return ok(res, {
+      attendancePercent: 0,
+      assignmentPercent: 0,
+      examAvg: 0,
+      sprintPercent: 0,
+      weeklyData: [
+        { day: "Sun", hours: 0, totalScheduled: 0, missedCount: 0, attendanceRate: 0 },
+        { day: "Mon", hours: 0, totalScheduled: 0, missedCount: 0, attendanceRate: 0 },
+        { day: "Tue", hours: 0, totalScheduled: 0, missedCount: 0, attendanceRate: 0 },
+        { day: "Wed", hours: 0, totalScheduled: 0, missedCount: 0, attendanceRate: 0 },
+        { day: "Thu", hours: 0, totalScheduled: 0, missedCount: 0, attendanceRate: 0 },
+        { day: "Fri", hours: 0, totalScheduled: 0, missedCount: 0, attendanceRate: 0 },
+        { day: "Sat", hours: 0, totalScheduled: 0, missedCount: 0, attendanceRate: 0 }
+      ],
+      missedDays: [],
+      unmarkedDays: [],
+      attendanceSummary: {
+        totalClasses: 0,
+        missedClasses: 0,
+        unmarkedClasses: 0
+      }
+    });
+  }
 }
 
 export async function leaderboard(req: AuthRequest, res: Response) {

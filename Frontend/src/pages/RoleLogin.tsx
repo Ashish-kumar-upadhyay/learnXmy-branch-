@@ -59,6 +59,7 @@ export default function RoleLogin() {
   const navigate = useNavigate();
   const { refreshProfile } = useAuth();
   const loginFormRef = useRef<HTMLDivElement>(null);
+  const demoLoginInProgress = useRef(false);
   const { 
     rateLimitState, 
     checkRateLimit, 
@@ -107,8 +108,8 @@ export default function RoleLogin() {
   }, [cleanup]);
 
   const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
-    // Prevent multiple submissions
-    if (isSubmitting || demoLoading) {
+    // Prevent multiple submissions immediately using ref
+    if (demoLoginInProgress.current || isSubmitting || demoLoading) {
       return;
     }
 
@@ -120,6 +121,7 @@ export default function RoleLogin() {
       return;
     }
 
+    demoLoginInProgress.current = true;
     setIsSubmitting(true);
     setDemoLoading(true);
     try {
@@ -165,6 +167,7 @@ export default function RoleLogin() {
         toast.error(msg);
       }
     } finally {
+      demoLoginInProgress.current = false;
       setDemoLoading(false);
       setIsSubmitting(false);
     }
@@ -1070,7 +1073,7 @@ export default function RoleLogin() {
                 <button
                   key={demo.role}
                   onClick={() => handleDemoLogin(demo.email, demo.password)}
-                  disabled={demoLoading || isSubmitting || rateLimitState.isBlocked}
+                  disabled={demoLoginInProgress.current || demoLoading || isSubmitting || rateLimitState.isBlocked}
                   className="group w-full flex items-center gap-3 p-2.5 sm:p-3 rounded-xl border border-border/30 hover:border-primary/20 transition-all duration-300 text-left disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden touch-manipulation"
                   style={{
                     background: 'linear-gradient(145deg, hsl(var(--muted) / 0.3), hsl(var(--muted) / 0.1))',
