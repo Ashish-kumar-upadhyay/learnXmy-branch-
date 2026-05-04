@@ -11,6 +11,20 @@ import { SprintPlanTask } from '../models/SprintPlanTask.model';
 import { SprintPlan } from '../models/SprintPlan.model';
 import { ok, fail } from '../utils/response';
 
+interface MissedDay {
+  date: string;
+  status: 'absent' | 'late';
+  title: string;
+  subject: string;
+}
+
+interface UnmarkedDay {
+  date: string;
+  title: string;
+  subject: string;
+  status: 'unmarked';
+}
+
 function weekBuckets() {
   const now = new Date();
   const buckets: Array<{ label: string; start: Date; end: Date }> = [];
@@ -148,35 +162,146 @@ export async function myAnalytics(req: AuthRequest, res: Response) {
       }
     ]),
     
-    // Generate weekly activity data
-    Attendance.aggregate([
-      { $match: { student_id: uid } },
+    // Get class schedules and attendance records for missed days analysis
+    User.aggregate([
+      { $match: { _id: uid } },
       {
-        $group: {
-          _id: { $dayOfWeek: '$date' },
-          count: { $sum: 1 }
+        $lookup: {
+          from: 'classes',
+          let: { batch: '$assignedClass' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$batch', '$$batch'] } } },
+            { $project: { schedule: 1, title: 1, subject: 1 } }
+          ],
+          as: 'scheduledClasses'
         }
       },
-      { $sort: { _id: 1 } }
+      {
+        $lookup: {
+          from: 'attendances',
+          localField: '_id',
+          foreignField: 'student_id',
+          as: 'attendanceRecords'
+        }
+      },
+      {
+        $project: {
+          scheduledClasses: 1,
+          attendanceRecords: {
+            $map: {
+              input: '$attendanceRecords',
+              as: 'att',
+              in: {
+                date: '$$att.date',
+                status: '$$att.status',
+                class_id: '$$att.class_id'
+              }
+            }
+          }
+        }
+      }
     ])
   ]);
 
   const stats = userStats[0] || { attendancePercent: 0, assignmentPercent: 0, examAvg: 0, sprintPercent: 0 };
   
-  // Simple weekly activity mapping
-  const weeklyActivityMap = new Map(weeklyActivity.map((w: any) => [w._id, w.count]));
+  // Process missed and unmarked attendance
+  const scheduledClasses = weeklyActivity[0]?.scheduledClasses || [];
+  const attendanceRecords = weeklyActivity[0]?.attendanceRecords || [];
+  
+  // Create attendance map for quick lookup
+  const attendanceMap = new Map<string, any>();
+  attendanceRecords.forEach((record: any) => {
+    const dateKey = new Date(record.date).toDateString();
+    attendanceMap.set(dateKey, record);
+  });
+
+  // Analyze missed and unmarked days
+  const missedDays: MissedDay[] = [];
+  const unmarkedDays: UnmarkedDay[] = [];
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  scheduledClasses.forEach((cls: any) => {
+    const classDate = new Date(cls.schedule);
+    const dateKey = classDate.toDateString();
+    
+    // Only check classes in last 30 days and not future dates
+    if (classDate >= thirtyDaysAgo && classDate <= today) {
+      const attendance = attendanceMap.get(dateKey);
+      
+      if (!attendance) {
+        // No attendance record - unmarked day
+        unmarkedDays.push({
+          date: cls.schedule,
+          title: cls.title,
+          subject: cls.subject,
+          status: 'unmarked'
+        });
+      } else if (attendance.status === 'absent' || attendance.status === 'late') {
+        // Marked as absent or late - missed day
+        missedDays.push({
+          date: attendance.date,
+          status: attendance.status,
+          title: cls.title,
+          subject: cls.subject
+        });
+      }
+    }
+  });
+
+  // Generate weekly activity data with attendance insights
+  const weeklyActivityMap = new Map<number, number>();
+  attendanceRecords.forEach((record: any) => {
+    const dayOfWeek = new Date(record.date).getDay();
+    weeklyActivityMap.set(dayOfWeek, (weeklyActivityMap.get(dayOfWeek) || 0) + 1);
+  });
+  
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const weeklyActivityData = days.map((day, index) => ({
-    day,
-    hours: weeklyActivityMap.get(index + 1) || 0
-  }));
+  const weeklyActivityData = days.map((day, index) => {
+    const dayOfWeek = index;
+    const attendedCount = weeklyActivityMap.get(dayOfWeek) || 0;
+    
+    // Find scheduled classes for this day of week in last 4 weeks
+    const dayClasses = scheduledClasses.filter((cls: any) => {
+      const classDate = new Date(cls.schedule);
+      return classDate.getDay() === dayOfWeek && 
+             classDate >= thirtyDaysAgo && 
+             classDate <= today;
+    });
+    
+    const totalScheduled = dayClasses.length;
+    const missedCount = dayClasses.filter((cls: any) => {
+      const dateKey = new Date(cls.schedule).toDateString();
+      const attendance = attendanceMap.get(dateKey);
+      return !attendance || attendance.status === 'absent' || attendance.status === 'late';
+    }).length;
+    
+    return {
+      day,
+      hours: attendedCount,
+      totalScheduled,
+      missedCount,
+      attendanceRate: totalScheduled > 0 ? Math.round((attendedCount / totalScheduled) * 100) : 0
+    };
+  });
 
   return ok(res, { 
     attendancePercent: Math.round(stats.attendancePercent), 
     assignmentPercent: Math.round(stats.assignmentPercent), 
     examAvg: Math.round(stats.examAvg), 
     sprintPercent: stats.sprintPercent,
-    weeklyData: weeklyActivityData 
+    weeklyData: weeklyActivityData,
+    missedDays: missedDays.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    unmarkedDays: unmarkedDays.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    attendanceSummary: {
+      totalClasses: scheduledClasses.filter((cls: any) => {
+        const classDate = new Date(cls.schedule);
+        return classDate >= thirtyDaysAgo && classDate <= today;
+      }).length,
+      missedClasses: missedDays.length,
+      unmarkedClasses: unmarkedDays.length
+    }
   });
 }
 
