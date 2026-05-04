@@ -85,6 +85,7 @@ export async function api<T>(
     const rt = getRefreshToken();
     if (rt) {
       try {
+        console.log('Attempting token refresh...');
         const refreshRes = await fetch(`${API_BASE}/api/auth/refresh-token`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -98,17 +99,23 @@ export async function api<T>(
           refreshJson = null;
         }
 
+        console.log('Refresh response:', refreshRes.status, refreshJson);
         const payload = refreshJson?.data;
         if (refreshRes.ok && payload?.accessToken && payload?.refreshToken) {
+          console.log('Token refresh successful, retrying original request...');
           setTokens({ accessToken: payload.accessToken, refreshToken: payload.refreshToken });
           return await api<T>(path, {
             ...options,
             accessToken: payload.accessToken,
             _retryAfterRefresh: true,
           });
+        } else {
+          console.log('Token refresh failed, clearing tokens');
+          clearTokens();
         }
-      } catch {
-        // ignore and fall through to normal error handling below
+      } catch (error) {
+        console.error('Token refresh error:', error);
+        clearTokens();
       }
     }
   }

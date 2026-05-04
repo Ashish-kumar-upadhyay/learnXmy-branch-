@@ -32,6 +32,7 @@ export function useDashboardData() {
       const accessToken = getAccessToken();
       if (!accessToken) throw new Error("No access token");
 
+      // Use individual Promise.allSettled for better error handling
       const [
         classesRes,
         sprintPlansRes,
@@ -40,28 +41,36 @@ export function useDashboardData() {
         submittedAssignmentsRes,
         attendanceRes,
         analyticsRes
-      ] = await Promise.all([
+      ] = await Promise.allSettled([
         api<any[]>("/api/classes", { method: "GET", accessToken, useCache: true, cacheTTL: 2 * 60 * 1000 }),
         api<any[]>("/api/sprint-plans", { method: "GET", accessToken, useCache: true, cacheTTL: 5 * 60 * 1000 }),
         api<any[]>("/api/sprint-plan-tasks", { method: "GET", accessToken, useCache: true, cacheTTL: 5 * 60 * 1000 }),
         api<any[]>(`/api/assignments?status=published${batch ? `&batch=${encodeURIComponent(batch)}` : ""}`, { method: "GET", accessToken, useCache: true, cacheTTL: 3 * 60 * 1000 }),
         api<any[]>("/api/assignments/my-submissions", { method: "GET", accessToken, useCache: true, cacheTTL: 2 * 60 * 1000 }),
-        api<any[]>("/api/attendance/my-attendance", { method: "GET", accessToken, useCache: true, cacheTTL: 10 * 60 * 1000 }).catch(() => ({ data: [] })),
-        api<any>("/api/analytics/me", { method: "GET", accessToken, useCache: true, cacheTTL: 5 * 60 * 1000 }).catch(() => ({ data: {} }))
+        api<any[]>("/api/attendance/my-attendance", { method: "GET", accessToken, useCache: true, cacheTTL: 10 * 60 * 1000 }),
+        api<any>("/api/analytics/me", { method: "GET", accessToken, useCache: true, cacheTTL: 5 * 60 * 1000 })
       ]);
 
+      // Extract data with fallbacks
+      const classesData = classesRes.status === 'fulfilled' ? classesRes.value.data || [] : [];
+      const sprintPlansData = sprintPlansRes.status === 'fulfilled' ? sprintPlansRes.value.data || [] : [];
+      const sprintTasksData = sprintTasksRes.status === 'fulfilled' ? sprintTasksRes.value.data || [] : [];
+      const assignmentsData = assignmentsRes.status === 'fulfilled' ? assignmentsRes.value.data || [] : [];
+      const submittedAssignmentsData = submittedAssignmentsRes.status === 'fulfilled' ? submittedAssignmentsRes.value.data || [] : [];
+      const attendanceData = attendanceRes.status === 'fulfilled' ? attendanceRes.value.data || [] : [];
+      const analyticsData = analyticsRes.status === 'fulfilled' ? analyticsRes.value.data || {} : {};
+
       // Process all data
-      const classes = (classesRes.data || []).map((c: any) => ({
+      const classes = classesData.map((c: any) => ({
         ...c,
         scheduled_at: c.scheduled_at ?? c.schedule ?? null,
       }));
 
-      const tasks = sprintTasksRes.data || [];
-      const assignments = assignmentsRes.data || [];
-      const submittedIds = new Set((submittedAssignmentsRes.data || []).map((s: any) => s.assignment_id));
+      const tasks = sprintTasksData;
+      const assignments = assignmentsData;
+      const submittedIds = new Set(submittedAssignmentsData.map((s: any) => s.assignment_id));
       const doneCount = assignments.filter((a: any) => submittedIds.has(a.id)).length;
 
-      const attendanceData = attendanceRes.data || [];
       const attendanceMap: Record<string, boolean> = {};
       attendanceData.forEach((record: any) => {
         attendanceMap[record.class_id] = record.present;
@@ -70,8 +79,6 @@ export function useDashboardData() {
       const attendedClasses = attendanceData.filter((r: any) => r.present).length;
       const totalClasses = attendanceData.length;
       const attendancePercentage = totalClasses > 0 ? Math.round((attendedClasses / totalClasses) * 100) : 0;
-
-      const analyticsData = analyticsRes.data || {};
       const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
       const weeklyActivity = days.map((day, index) => ({
         day,
