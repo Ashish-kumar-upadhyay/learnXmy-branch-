@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { API_BASE, setTokens } from "@/lib/backendApi";
+import { useRateLimit } from "@/hooks/useRateLimit";
 import {
   GraduationCap, Mail, Lock, Eye, EyeOff, User, ArrowLeft,
   School, ShieldCheck, Zap, Sparkles, Clock, Hash,
@@ -58,6 +59,13 @@ export default function RoleLogin() {
   const navigate = useNavigate();
   const { refreshProfile } = useAuth();
   const loginFormRef = useRef<HTMLDivElement>(null);
+  const { 
+    rateLimitState, 
+    checkRateLimit, 
+    recordAttempt, 
+    scheduleRetry, 
+    cleanup 
+  } = useRateLimit();
   const handleGetStartedClick = () => {
     setIsLogin(true);
     setHighlightInputs(true);
@@ -78,6 +86,7 @@ export default function RoleLogin() {
   const [demoLoading, setDemoLoading] = useState(false);
   const [waitingApproval, setWaitingApproval] = useState(false);
   const [highlightInputs, setHighlightInputs] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validRole = (role && role in roleConfig ? role : "student") as RoleKey;
   const config = roleConfig[validRole];
@@ -92,7 +101,26 @@ export default function RoleLogin() {
     setFullName("");
   }, [role]);
 
+  // Cleanup rate limit timers on unmount
+  useEffect(() => {
+    return cleanup;
+  }, [cleanup]);
+
   const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
+    // Prevent multiple submissions
+    if (isSubmitting || demoLoading) {
+      return;
+    }
+
+    // Check rate limit before proceeding
+    const rateCheck = checkRateLimit();
+    if (!rateCheck.allowed) {
+      const waitMinutes = Math.ceil((rateCheck.waitTime || 0) / 1000 / 60);
+      toast.error(`Rate limit exceeded. Please wait ${waitMinutes} minute${waitMinutes > 1 ? 's' : ''} before trying demo login.`);
+      return;
+    }
+
+    setIsSubmitting(true);
     setDemoLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
@@ -101,10 +129,26 @@ export default function RoleLogin() {
         body: JSON.stringify({ email: demoEmail, password: demoPassword }),
       });
       const json = await res.json().catch(() => null);
+      
       if (!res.ok || !json?.data) {
-        throw new Error(json?.message || json?.errors?.[0] || "Demo login failed");
+        const errorMessage = json?.message || json?.errors?.[0] || "Demo login failed";
+        
+        // Handle specific rate limit errors
+        if (res.status === 429) {
+          const retryAfter = res.headers.get('Retry-After');
+          const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 60000;
+          const waitMinutes = Math.ceil(waitTime / 1000 / 60);
+          toast.error(`Rate limit exceeded. Please wait ${waitMinutes} minute${waitMinutes > 1 ? 's' : ''} before trying again.`);
+          recordAttempt(false);
+          throw new Error(errorMessage);
+        }
+        
+        recordAttempt(false);
+        throw new Error(errorMessage);
       }
 
+      // Success - reset rate limit
+      recordAttempt(true);
       setTokens({ accessToken: json.data.accessToken, refreshToken: json.data.refreshToken });
       await refreshProfile();
 
@@ -122,11 +166,27 @@ export default function RoleLogin() {
       }
     } finally {
       setDemoLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent multiple submissions
+    if (isSubmitting || loading) {
+      return;
+    }
+    
+    // Check rate limit before proceeding
+    const rateCheck = checkRateLimit();
+    if (!rateCheck.allowed) {
+      const waitMinutes = Math.ceil((rateCheck.waitTime || 0) / 1000 / 60);
+      toast.error(`Too many attempts. Please wait ${waitMinutes} minute${waitMinutes > 1 ? 's' : ''} before trying again.`);
+      return;
+    }
+
+    setIsSubmitting(true);
     setLoading(true);
 
     try {
@@ -143,8 +203,26 @@ export default function RoleLogin() {
           body: JSON.stringify(loginBody),
         });
         const json = await res.json().catch(() => null);
-        if (!res.ok || !json?.data) throw new Error(json?.message || "Login failed");
+        
+        if (!res.ok || !json?.data) {
+          const errorMessage = json?.message || "Login failed";
+          
+          // Handle specific rate limit errors
+          if (res.status === 429) {
+            const retryAfter = res.headers.get('Retry-After');
+            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 60000;
+            const waitMinutes = Math.ceil(waitTime / 1000 / 60);
+            toast.error(`Rate limit exceeded. Please wait ${waitMinutes} minute${waitMinutes > 1 ? 's' : ''} before trying again.`);
+            recordAttempt(false);
+            throw new Error(errorMessage);
+          }
+          
+          recordAttempt(false);
+          throw new Error(errorMessage);
+        }
 
+        // Success - reset rate limit
+        recordAttempt(true);
         setTokens({ accessToken: json.data.accessToken, refreshToken: json.data.refreshToken });
         await refreshProfile();
 
@@ -199,6 +277,7 @@ export default function RoleLogin() {
       }
     } finally {
       setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -697,7 +776,7 @@ export default function RoleLogin() {
                 backgroundSize: '20px 20px'
               }} />
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               {!isLogin && (
                 <div
                   // initial={{ opacity: 0, x: -20 }}
@@ -856,6 +935,15 @@ export default function RoleLogin() {
                 </div>
               </div>
 
+              {rateLimitState.isBlocked && (
+                <div className="rounded-2xl border border-red-200/50 dark:border-red-800/30 bg-red-50 dark:bg-red-950/20 p-4 mb-4">
+                  <div className="flex items-center gap-2 text-sm text-red-700 dark:text-red-400 font-medium">
+                    <Clock className="w-4 h-4" />
+                    Too many attempts. Please wait before trying again.
+                  </div>
+                </div>
+              )}
+
               {isLogin && validRole !== "student" && validRole !== "teacher" && (
                 <div className="flex items-center justify-end">
                   <Link
@@ -869,8 +957,8 @@ export default function RoleLogin() {
 
               <button
                 type="submit"
-                disabled={loading}
-                className="btn-premium-3d w-full py-3 sm:py-3.5 rounded-xl font-semibold text-sm relative overflow-hidden group"
+                disabled={loading || isSubmitting || rateLimitState.isBlocked}
+                className="btn-premium-3d w-full py-3 sm:py-3.5 rounded-xl font-semibold text-sm relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ 
                   background: config.gradient,
                   boxShadow: '0 4px 20px hsl(var(--primary) / 0.4), 0 2px 8px hsl(var(--primary) / 0.2)'
@@ -950,13 +1038,29 @@ export default function RoleLogin() {
               <div
                 // animate={{ rotate: [0, 10, -10, 0] }}
                 // transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="p-1.5 rounded-lg"
-                style={{ background: 'linear-gradient(135deg, hsl(var(--warning)), hsl(var(--warning) / 0.8))' }}
+                className={`p-1.5 rounded-lg ${rateLimitState.isBlocked ? 'bg-red-500' : ''}`}
+                style={{ 
+                  background: rateLimitState.isBlocked 
+                    ? 'linear-gradient(135deg, hsl(var(--destructive)), hsl(var(--destructive) / 0.8))'
+                    : 'linear-gradient(135deg, hsl(var(--warning)), hsl(var(--warning) / 0.8))' 
+                }}
               >
                 <Zap className="w-4 h-4 text-white" />
               </div>
-              <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">Quick Demo Access</h3>
+              <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                {rateLimitState.isBlocked ? "Rate Limited" : "Quick Demo Access"}
+              </h3>
             </div>
+            
+            {/* Rate limit warning for demo section */}
+            {rateLimitState.isBlocked && (
+              <div className="rounded-xl border border-red-200/50 dark:border-red-800/30 bg-red-50 dark:bg-red-950/20 p-3 mb-3">
+                <div className="flex items-center gap-2 text-xs text-red-700 dark:text-red-400">
+                  <Clock className="w-3 h-3" />
+                  Too many attempts. Please wait before trying demo login.
+                </div>
+              </div>
+            )}
             
             {/* Demo account cards */}
             <div className="space-y-3">
@@ -966,8 +1070,8 @@ export default function RoleLogin() {
                 <button
                   key={demo.role}
                   onClick={() => handleDemoLogin(demo.email, demo.password)}
-                  disabled={demoLoading}
-                  className="group w-full flex items-center gap-3 p-2.5 sm:p-3 rounded-xl border border-border/30 hover:border-primary/20 transition-all duration-300 text-left disabled:opacity-50 relative overflow-hidden touch-manipulation"
+                  disabled={demoLoading || isSubmitting || rateLimitState.isBlocked}
+                  className="group w-full flex items-center gap-3 p-2.5 sm:p-3 rounded-xl border border-border/30 hover:border-primary/20 transition-all duration-300 text-left disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden touch-manipulation"
                   style={{
                     background: 'linear-gradient(145deg, hsl(var(--muted) / 0.3), hsl(var(--muted) / 0.1))',
                     backdropFilter: 'blur(8px)',

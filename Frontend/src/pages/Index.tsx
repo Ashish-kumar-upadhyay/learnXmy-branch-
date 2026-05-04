@@ -3,9 +3,8 @@ import { Target, FileText, Zap, Trophy, ArrowUpRight, Flame, BookOpen, Calendar,
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area } from "recharts";
 import ProgressRing from "@/components/ProgressRing";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDashboardData } from "@/hooks/useDashboardData";
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { api, getAccessToken } from "@/lib/backendApi";
 import { format, subDays, startOfDay } from "date-fns";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
@@ -22,119 +21,20 @@ const iconMap: Record<string, React.ElementType> = { target: Target, file: FileT
 
 export default function Index() {
   const { profile, user } = useAuth();
+  const { data: dashboardData, isLoading, error } = useDashboardData();
+  
   const displayName = profile?.full_name || "Student";
   const firstName = displayName.split(" ")[0];
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [dbClasses, setDbClasses] = useState<any[]>([]);
-  const [classAttendance, setClassAttendance] = useState<Record<string, boolean>>({});
-  const [sprintTasks, setSprintTasks] = useState<any[]>([]);
-  const [stats, setStats] = useState({ attendance: "0%", attChange: "", assignmentsDone: "0/0", assChange: "", streak: "0 days", rank: "#-" });
-  const [weeklyData, setWeeklyData] = useState<{ day: string; hours: number }[]>([]);
-
-  useEffect(() => {
-    if (!user) return;
-    fetchDashboardData();
-  }, [user]);
-
-  // Remove fixed timeout - loading state will be managed by data fetching
-
-  async function fetchDashboardData() {
-    const accessToken = getAccessToken();
-    if (!accessToken) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      // Fetch classes
-      const classesRes = await api<any[]>("/api/classes", { method: "GET", accessToken });
-      const classes = (classesRes.data || []).map((c: any) => ({
-        ...c,
-        scheduled_at: c.scheduled_at ?? c.schedule ?? null,
-      }));
-      setDbClasses(classes);
-
-      // Fetch sprint plans and tasks
-      const batch = profile?.class_name || profile?.batch || "";
-      const [sprintPlansRes, sprintTasksRes, assignmentsRes] = await Promise.all([
-        api<any[]>("/api/sprint-plans", { method: "GET", accessToken }),
-        api<any[]>("/api/sprint-plan-tasks", { method: "GET", accessToken }),
-        api<any[]>(`/api/assignments?status=published${batch ? `&batch=${encodeURIComponent(batch)}` : ""}`, { method: "GET", accessToken }),
-      ]);
-
-      // Process sprint tasks
-      const tasks = sprintTasksRes.data || [];
-      setSprintTasks(tasks);
-
-      // Process assignments
-      const assignments = assignmentsRes.data || [];
-      const submittedAssignments = await api<any[]>("/api/assignments/my-submissions", { method: "GET", accessToken });
-      const submittedIds = new Set((submittedAssignments.data || []).map((s: any) => s.assignment_id));
-      const doneCount = assignments.filter((a: any) => submittedIds.has(a.id)).length;
-
-      // Fetch attendance data
-      let attendanceData: any[] = [];
-      try {
-        const attendanceRes = await api<any[]>(`/api/attendance/my-attendance`, { method: "GET", accessToken });
-        if (attendanceRes.status === 200) {
-          attendanceData = attendanceRes.data || [];
-        }
-      } catch (error) {
-        console.warn("Attendance endpoint not available, using empty data");
-        attendanceData = [];
-      }
-      const attendanceMap: Record<string, boolean> = {};
-      attendanceData.forEach((record: any) => {
-        attendanceMap[record.class_id] = record.present;
-      });
-      setClassAttendance(attendanceMap);
-
-      // Calculate attendance percentage
-      const attendedClasses = attendanceData.filter((r: any) => r.present).length;
-      const totalClasses = attendanceData.length;
-      const attendancePercentage = totalClasses > 0 ? Math.round((attendedClasses / totalClasses) * 100) : 0;
-
-      // Update stats with real data
-      setStats({
-        attendance: `${attendancePercentage}%`,
-        attChange: `${attendedClasses}/${totalClasses} classes`,
-        assignmentsDone: `${doneCount}/${assignments.length}`,
-        assChange: assignments.length > 0 ? `${Math.round((doneCount / assignments.length) * 100)}%` : "0%",
-        streak: "0 days", // TODO: Fetch from backend when available
-        rank: "#-", // TODO: Fetch from backend when available
-      });
-
-      // Fetch weekly activity data
-      const analyticsRes = await api<any>("/api/analytics/me", { method: "GET", accessToken });
-      const analyticsData: any = analyticsRes.data || {};
-      
-      // Process weekly activity from analytics
-      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-      const weeklyActivity = days.map((day, index) => ({
-        day,
-        hours: (analyticsData.weeklyActivity as any)?.[day] || Math.floor(Math.random() * 3) + 1, // Fallback to small random values
-      }));
-      setWeeklyData(weeklyActivity);
-
-    } catch (error) {
-      console.error("Failed to fetch dashboard data:", error);
-      // Set fallback data
-      setStats({
-        attendance: "0%",
-        attChange: "0/0 classes",
-        assignmentsDone: "0/0",
-        assChange: "0%",
-        streak: "0 days",
-        rank: "#-",
-      });
-      setWeeklyData(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => ({ day: d, hours: 0 })));
-      setSprintTasks([]);
-    } finally {
-      // Always set loading to false after data fetch completes
-      setIsLoading(false);
-    }
-  }
+  // Extract data from React Query
+  const dbClasses = dashboardData?.classes || [];
+  const classAttendance = dashboardData?.attendanceMap || {};
+  const sprintTasks = dashboardData?.tasks || [];
+  const stats = dashboardData?.stats || { attendance: "0%", attChange: "0/0 classes", assignmentsDone: "0/0", assChange: "0%", streak: "0 days", rank: "#-" };
+  const weeklyData = dashboardData?.weeklyData || [];
+  const missedDays = dashboardData?.missedDays || [];
+  const unmarkedDays = dashboardData?.unmarkedDays || [];
+  const attendanceSummary = dashboardData?.attendanceSummary || { totalClasses: 0, missedClasses: 0, unmarkedClasses: 0 };
 
   const statsCards = [
     { label: "Attendance", value: stats.attendance, change: stats.attChange, icon: "attendance" },
@@ -190,6 +90,17 @@ export default function Index() {
             </div>
           </div>
         </motion.div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h3 className="text-lg font-bold text-foreground mb-2">Error Loading Dashboard</h3>
+          <p className="text-sm text-muted-foreground">Please refresh the page and try again.</p>
+        </div>
       </div>
     );
   }
@@ -311,7 +222,7 @@ export default function Index() {
       </div>
 
       {/* Bottom Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+      <motion.div variants={item} className="grid grid-cols-1 lg:grid-cols-5 gap-5">
         {/* Upcoming Classes from DB */}
         <motion.div variants={item} className="lg:col-span-2 bg-gradient-to-br from-white/90 to-white/60 dark:from-card/90 dark:to-card/60 rounded-2xl border border-border/20 p-6 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all duration-300">
           <div className="flex items-center justify-between mb-5">
@@ -422,7 +333,124 @@ export default function Index() {
             </div>
           )}
         </motion.div>
-      </div>
+      </motion.div>
+
+      {/* Attendance Insights Section */}
+      <motion.div variants={item} className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Missed Days */}
+        <motion.div className="bg-gradient-to-br from-red-50/80 to-orange-50/80 dark:from-red-950/40 dark:to-orange-950/40 rounded-2xl border border-red-100/50 dark:border-red-900/30 p-6 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-red-400 to-orange-500 flex items-center justify-center shadow-lg">
+                <Circle className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground dark:text-foreground/95 mb-1">Missed Attendance</h3>
+                <p className="text-sm text-muted-foreground/70 dark:text-muted-foreground/60">Classes you missed or were late</p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/30 px-3 py-1.5 rounded-full">
+              {attendanceSummary.missedClasses} days
+            </span>
+          </div>
+          {missedDays.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-green-500" />
+              <p>Great! No missed classes in last 30 days</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {missedDays.slice(0, 5).map((day, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-red-100/50 dark:bg-red-950/20 border border-red-200/30 dark:border-red-800/30"
+                >
+                  <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
+                    <Circle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">{day.title}</p>
+                    <p className="text-xs text-muted-foreground">{day.subject}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-red-600 dark:text-red-400 capitalize">
+                      {day.status}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(day.date), "MMM d")}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+              {missedDays.length > 5 && (
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  +{missedDays.length - 5} more missed classes
+                </p>
+              )}
+            </div>
+          )}
+        </motion.div>
+
+        {/* Unmarked Days */}
+        <motion.div className="bg-gradient-to-br from-amber-50/80 to-yellow-50/80 dark:from-amber-950/40 dark:to-yellow-950/40 rounded-2xl border border-amber-100/50 dark:border-amber-900/30 p-6 shadow-lg backdrop-blur-sm hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center shadow-lg">
+                <Clock className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground dark:text-foreground/95 mb-1">Unmarked Attendance</h3>
+                <p className="text-sm text-muted-foreground/70 dark:text-muted-foreground/60">Classes without attendance record</p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/30 px-3 py-1.5 rounded-full">
+              {attendanceSummary.unmarkedClasses} days
+            </span>
+          </div>
+          {unmarkedDays.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-green-500" />
+              <p>All classes have attendance records!</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {unmarkedDays.slice(0, 5).map((day, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-amber-100/50 dark:bg-amber-950/20 border border-amber-200/30 dark:border-amber-800/30"
+                >
+                  <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">{day.title}</p>
+                    <p className="text-xs text-muted-foreground">{day.subject}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                      Not Marked
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(day.date), "MMM d")}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+              {unmarkedDays.length > 5 && (
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  +{unmarkedDays.length - 5} more unmarked classes
+                </p>
+              )}
+            </div>
+          )}
+        </motion.div>
+      </motion.div>
     </motion.div>
   );
 }

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import { CheckCircle2, XCircle, Clock, AlertCircle, CalendarDays, Navigation } from "lucide-react";
+import { useDashboardData } from "@/hooks/useDashboardData";
+import { CheckCircle2, XCircle, Clock, AlertCircle, CalendarDays, Navigation, Circle } from "lucide-react";
 import { format } from "date-fns";
 import ProgressRing from "@/components/ProgressRing";
 import AttendanceCheckIn from "@/components/AttendanceCheckIn";
@@ -25,6 +26,7 @@ const statusIcon: Record<string, React.ElementType> = {
   late: Clock,
   half_day: AlertCircle,
   excused: AlertCircle,
+  unmarked: Circle,
 };
 
 const statusColor: Record<string, string> = {
@@ -33,6 +35,7 @@ const statusColor: Record<string, string> = {
   late: "text-warning",
   half_day: "text-violet-500",
   excused: "text-muted-foreground",
+  unmarked: "text-amber-500",
 };
 
 const statusBg: Record<string, string> = {
@@ -41,10 +44,12 @@ const statusBg: Record<string, string> = {
   late: "bg-warning/15",
   half_day: "bg-violet-500/10",
   excused: "bg-muted/50",
+  unmarked: "bg-amber-500/10",
 };
 
 export default function StudentAttendance() {
   const { user } = useAuth();
+  const { data: dashboardData } = useDashboardData();
   const [records, setRecords] = useState<AttendanceWithClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -72,10 +77,14 @@ export default function StudentAttendance() {
     const mapped: AttendanceWithClass[] = (items as any[]).map((r) => ({
       id: String(r._id ?? r.id ?? ""),
       status: r.status,
-      marked_at: r.checked_in_at ? new Date(r.checked_in_at).toISOString() : new Date().toISOString(),
-      notes: null,
+      marked_at: r.checked_in_at ? new Date(r.checked_in_at).toISOString() : new Date(r.date).toISOString(),
+      notes: r.notes || null,
       class_id: r.class_id ? String(r.class_id) : undefined,
-      classes: null,
+      classes: r.class_title ? {
+        title: r.class_title,
+        subject: r.class_subject,
+        scheduled_at: r.scheduled_at
+      } : null,
     }));
 
     setRecords(mapped);
@@ -164,6 +173,39 @@ export default function StudentAttendance() {
     (acc, r) => { acc[r.status] = (acc[r.status] || 0) + 1; return acc; },
     {} as Record<string, number>
   );
+
+  // Get missed and unmarked days from analytics data
+  const missedDays = dashboardData?.missedDays || [];
+  const unmarkedDays = dashboardData?.unmarkedDays || [];
+  const attendanceSummary = dashboardData?.attendanceSummary || { totalClasses: 0, missedClasses: 0, unmarkedClasses: 0 };
+
+  // Combine all attendance data for display
+  const allAttendanceRecords = [
+    ...records.map(r => ({
+      id: r.id,
+      date: new Date(r.marked_at),
+      status: r.status,
+      title: r.classes?.title || "General Attendance",
+      subject: r.classes?.subject || "N/A",
+      type: "record" as const
+    })),
+    ...missedDays.map((day, index) => ({
+      id: `missed-${index}`,
+      date: new Date(day.date),
+      status: day.status,
+      title: day.title,
+      subject: day.subject,
+      type: "missed" as const
+    })),
+    ...unmarkedDays.map((day, index) => ({
+      id: `unmarked-${index}`,
+      date: new Date(day.date),
+      status: "unmarked" as const,
+      title: day.title,
+      subject: day.subject,
+      type: "unmarked" as const
+    }))
+  ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   if (loading) {
     return (
@@ -279,24 +321,44 @@ export default function StudentAttendance() {
           </div>
         </div>
 
-        <div className="glass-card p-6 grid grid-cols-2 gap-3">
-          {(["present", "absent", "late", "half_day"] as const).map(s => {
-            const Icon = statusIcon[s];
-            return (
-              <div key={s} className={`flex items-center gap-2 p-2.5 rounded-lg ${statusBg[s]}`}>
-                <Icon className={`w-4 h-4 ${statusColor[s]}`} />
-                <div>
-                  <p className={`text-lg font-bold ${statusColor[s]}`}>{counts[s] || 0}</p>
-                  <p className="text-[11px] text-muted-foreground capitalize">{s}</p>
+        <div className="glass-card p-6">
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            {(["present", "absent", "late", "half_day"] as const).map(s => {
+              const Icon = statusIcon[s];
+              return (
+                <div key={s} className={`flex items-center gap-2 p-2.5 rounded-lg ${statusBg[s]}`}>
+                  <Icon className={`w-4 h-4 ${statusColor[s]}`} />
+                  <div>
+                    <p className={`text-lg font-bold ${statusColor[s]}`}>{counts[s] || 0}</p>
+                    <p className="text-[11px] text-muted-foreground capitalize">{s}</p>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+          
+          {/* Missed and Unmarked Days */}
+          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border/50">
+            <div className={`flex items-center gap-2 p-2.5 rounded-lg ${statusBg['absent']}`}>
+              <XCircle className={`w-4 h-4 ${statusColor['absent']}`} />
+              <div>
+                <p className={`text-lg font-bold ${statusColor['absent']}`}>{attendanceSummary.missedClasses}</p>
+                <p className="text-[11px] text-muted-foreground">Missed Days</p>
               </div>
-            );
-          })}
+            </div>
+            <div className={`flex items-center gap-2 p-2.5 rounded-lg ${statusBg['unmarked']}`}>
+              <Circle className={`w-4 h-4 ${statusColor['unmarked']}`} />
+              <div>
+                <p className={`text-lg font-bold ${statusColor['unmarked']}`}>{attendanceSummary.unmarkedClasses}</p>
+                <p className="text-[11px] text-muted-foreground">Unmarked Days</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Records list */}
-      {records.length === 0 ? (
+      {allAttendanceRecords.length === 0 ? (
         <div className="glass-card p-8 text-center text-muted-foreground">
           <CalendarDays className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p>No attendance records yet</p>
@@ -305,8 +367,19 @@ export default function StudentAttendance() {
         <div className="space-y-2">
           {records.map(r => {
             const Icon = statusIcon[r.status] || CheckCircle2;
+            const isMissedDay = r.id?.startsWith('missed-') || r.notes?.includes('gap in attendance');
+            const isUnmarkedDay = r.status === 'unmarked';
+            
             return (
-              <motion.div key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card-hover p-4 flex items-center gap-4">
+              <motion.div 
+                key={r.id} 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                className={`glass-card-hover p-4 flex items-center gap-4 ${
+                  isMissedDay ? 'border-l-4 border-l-red-500' : 
+                  isUnmarkedDay ? 'border-l-4 border-l-amber-500' : ''
+                }`}
+              >
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${statusBg[r.status]}`}>
                   <Icon className={`w-5 h-5 ${statusColor[r.status]}`} />
                 </div>
@@ -315,13 +388,33 @@ export default function StudentAttendance() {
                     {format(new Date(r.marked_at), "EEEE, MMMM d, yyyy")}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Marked at: {format(new Date(r.marked_at), "h:mm a")} · Type: {r.status === "half_day" ? "Half Day" : r.status === "full" ? "Full Day" : r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+                    {isMissedDay 
+                      ? `Automatically marked as absent`
+                      : isUnmarkedDay
+                      ? `Attendance not marked by teacher`
+                      : `Marked at: ${format(new Date(r.marked_at), "h:mm a")} · ${r.classes?.title || 'General Attendance'}`
+                    }
                   </p>
+                  {r.classes?.subject && !isMissedDay && !isUnmarkedDay && (
+                    <p className="text-xs text-muted-foreground">
+                      Subject: {r.classes.subject}
+                    </p>
+                  )}
+                  {isMissedDay && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                      ⚠️ Gap in attendance detected
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <span className={`text-xs font-medium capitalize px-2 py-1 rounded-full ${statusBg[r.status]} ${statusColor[r.status]}`}>
-                    {r.status}
+                    {isMissedDay ? 'Absent' : isUnmarkedDay ? 'Not Marked' : r.status === 'half_day' ? 'Half Day' : r.status === 'full' ? 'Full Day' : r.status.charAt(0).toUpperCase() + r.status.slice(1)}
                   </span>
+                  {isMissedDay && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                      Missed
+                    </p>
+                  )}
                 </div>
               </motion.div>
             );

@@ -5,10 +5,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import DashboardLayout from "@/components/DashboardLayout";
 import Index from "./pages/Index";
 import Lectures from "./pages/Lectures";
 import Assignments from "./pages/Assignments";
+import AssignmentDetails from "./pages/AssignmentDetails";
 import Analytics from "./pages/Analytics";
 import Leaderboard from "./pages/Leaderboard";
 import AiTutor from "./pages/AiTutor";
@@ -36,7 +38,16 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000, // 2 minutes
+      gcTime: 5 * 60 * 1000, // 5 minutes (new name for cacheTime)
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function LoadingScreen() {
   return (
@@ -90,7 +101,8 @@ const App = () => (
       <BrowserRouter>
         <ThemeProvider>
           <AuthProvider>
-          <Routes>
+            <ErrorBoundary>
+              <Routes>
             <Route path="/auth" element={<PublicRoute><RoleSelect /></PublicRoute>} />
             <Route path="/auth/:role" element={<PublicRoute><RoleLogin /></PublicRoute>} />
             <Route path="/auth/google/callback" element={<PublicRoute><GoogleCallback /></PublicRoute>} />
@@ -105,6 +117,7 @@ const App = () => (
             <Route path="/student-dashboard" element={<ProtectedRoute><DashboardLayout><Index /></DashboardLayout></ProtectedRoute>} />
             <Route path="/lectures" element={<ProtectedRoute><DashboardLayout><Lectures /></DashboardLayout></ProtectedRoute>} />
             <Route path="/assignments" element={<ProtectedRoute><DashboardLayout><Assignments /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/assignments/:id" element={<ProtectedRoute><DashboardLayout><AssignmentDetails /></DashboardLayout></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><DashboardLayout><Analytics /></DashboardLayout></ProtectedRoute>} />
             <Route path="/leaderboard" element={<ProtectedRoute><DashboardLayout><Leaderboard /></DashboardLayout></ProtectedRoute>} />
             <Route path="/ai-tutor" element={<ProtectedRoute><DashboardLayout><AiTutor /></DashboardLayout></ProtectedRoute>} />
@@ -122,8 +135,9 @@ const App = () => (
             <Route path="/admin" element={<ProtectedRoute><DashboardLayout><AdminDashboard /></DashboardLayout></ProtectedRoute>} />
             <Route path="/support" element={<ProtectedRoute><DashboardLayout><SupportTickets /></DashboardLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
+              </Routes>
+            </ErrorBoundary>
+          </AuthProvider>
         </ThemeProvider>
       </BrowserRouter>
     </TooltipProvider>

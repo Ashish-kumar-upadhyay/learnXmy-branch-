@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { api, getAccessToken, getApiErrorMessage } from "@/lib/backendApi";
+import { api, getAccessToken, getApiErrorMessage, clearApiCache } from "@/lib/backendApi";
 import {
   CalendarPlus, FileText, Users, Megaphone, Plus, Clock,
   MapPin, BookOpen, Trash2, Edit, Send, AlertTriangle, Info, ClipboardCheck,
@@ -237,162 +237,155 @@ export default function TeacherDashboard() {
     if (blockUi) setLoading(true);
     try {
     const accessToken = getAccessToken();
-    const [c, a, n, s, myAtt, myLv, lec] = await Promise.all([
-      (async () => {
-        if (!accessToken) return { data: [] as any[] };
-        const res = await api<any[]>(`/api/classes`, {
-          method: "GET",
-          accessToken,
-        });
-        return { data: res.status === 200 ? (res.data ?? []) : [] as any[] };
-      })(),
-      (async () => {
-        if (!accessToken) return { data: [] as any[] };
-        const res = await api<any[]>(`/api/assignments`, {
-          method: "GET",
-          accessToken,
-        });
-        return { data: res.status === 200 ? (res.data ?? []) : [] as any[] };
-      })(),
-      (async () => {
-        if (!accessToken) return { data: [] as any[] };
-        const res = await api<any[]>(`/api/announcements?teacher_id=${encodeURIComponent(user!.id)}`, {
-          method: "GET",
-          accessToken,
-        });
-        return { data: res.status === 200 ? (res.data ?? []) : [] as any[] };
-      })(),
-      { data: [] as any[] },
-      (async () => {
-        if (!accessToken) return { data: [] as any[] };
-        const res = await api<any[]>(`/api/teacher-attendance/history?teacher_id=${encodeURIComponent(user!.id)}`, {
-          method: "GET",
-          accessToken,
-        });
-        return { data: res.status === 200 ? (res.data ?? []) : [] as any[] };
-      })(),
-      (async () => {
-        if (!accessToken) return { data: [] as any[] };
-        const res = await api<any[]>(`/api/leave-requests?user_id=${encodeURIComponent(user!.id)}`, {
-          method: "GET",
-          accessToken,
-        });
-        return { data: res.status === 200 ? (res.data ?? []) : [] as any[] };
-      })(),
-      (async () => {
-        if (!accessToken) return { data: [] as any[] };
-        const res = await api<any[]>(`/api/lectures?teacher_id=${encodeURIComponent(user!.id)}`, {
-          method: "GET",
-          accessToken,
-        });
-        return { data: res.status === 200 ? (res.data ?? []) : [] as any[] };
-      })(),
+    if (!accessToken) return;
+
+    // Split into essential and secondary data for better perceived performance
+    const [essentialData, secondaryData] = await Promise.all([
+      // Essential data - needed immediately (with caching)
+      Promise.all([
+        api<any[]>(`/api/classes`, { method: "GET", accessToken, useCache: true, cacheTTL: 2 * 60 * 1000 }), // 2 min cache
+        api<any[]>(`/api/assignments`, { method: "GET", accessToken, useCache: true, cacheTTL: 2 * 60 * 1000 }), // 2 min cache
+        api<any[]>(`/api/announcements?teacher_id=${encodeURIComponent(user!.id)}`, { method: "GET", accessToken, useCache: true, cacheTTL: 60 * 1000 }), // 1 min cache
+      ]),
+      // Secondary data - can load after (with caching)
+      Promise.all([
+        api<any[]>(`/api/teacher-attendance/history?teacher_id=${encodeURIComponent(user!.id)}`, { method: "GET", accessToken, useCache: true, cacheTTL: 5 * 60 * 1000 }), // 5 min cache
+        api<any[]>(`/api/leave-requests?user_id=${encodeURIComponent(user!.id)}`, { method: "GET", accessToken, useCache: true, cacheTTL: 5 * 60 * 1000 }), // 5 min cache
+        api<any[]>(`/api/lectures?teacher_id=${encodeURIComponent(user!.id)}`, { method: "GET", accessToken, useCache: true, cacheTTL: 10 * 60 * 1000 }), // 10 min cache
+      ])
     ]);
-    if (lec.data) setLecturesList(lec.data);
-    if (c.data) {
-      // Fetch teacher information for each class and map backend class fields to UI shape
-      const classesWithTeachers = await Promise.all(
-        (c.data as any[]).map(async (cls) => {
-          try {
-            const teacherResponse = await api<TeacherData>(`/api/users/${cls.teacher_id}`, {
-              method: "GET",
-              accessToken,
-            });
-            
-            const teacherData = teacherResponse.status === 200 ? teacherResponse.data : null;
-            
-            return {
-              ...cls,
-              scheduled_at: cls.schedule ? new Date(cls.schedule).toISOString() : cls.scheduled_at,
-              duration_minutes: cls.duration ?? cls.duration_minutes ?? 60,
-              subject: cls.subject || cls.batch || 'General',
-              batch: cls.batch || null,
-              teacher_name: teacherData?.full_name || 'Unknown Teacher',
-              teacher_email: teacherData?.email || '',
-            };
-          } catch (error) {
-            console.error(`Failed to fetch teacher for class ${cls.id}:`, error);
-            return {
-              ...cls,
-              scheduled_at: cls.schedule ? new Date(cls.schedule).toISOString() : cls.scheduled_at,
-              duration_minutes: cls.duration ?? cls.duration_minutes ?? 60,
-              subject: cls.subject || cls.batch || 'General',
-              batch: cls.batch || null,
-              teacher_name: 'Unknown Teacher',
-              teacher_email: '',
-            };
-          }
-        })
-      );
-      setClasses(classesWithTeachers);
+
+    const [classesRes, assignmentsRes, announcementsRes] = essentialData;
+    const [attendanceRes, leavesRes, lecturesRes] = secondaryData;
+
+    // Process essential data first
+    const classes = classesRes.status === 200 ? (classesRes.data ?? []) : [];
+    const assignments = assignmentsRes.status === 200 ? (assignmentsRes.data ?? []) : [];
+    
+    // Set basic data immediately for better UX
+    if (announcementsRes.status === 200 && announcementsRes.data) {
+      setAnnouncements(announcementsRes.data);
     }
-    if (a.data) setAssignments(a.data);
-    if (n.data) setAnnouncements(n.data);
-    if (myAtt.data) {
-      setMyAttendance(myAtt.data);
+    if (lecturesRes.status === 200 && lecturesRes.data) {
+      setLecturesList(lecturesRes.data);
+    }
+    if (attendanceRes.status === 200 && attendanceRes.data) {
+      setMyAttendance(attendanceRes.data);
       const today = new Date().toISOString().split("T")[0];
       setTodayMarked(
-        myAtt.data.some((att: any) => {
+        attendanceRes.data.some((att: any) => {
           const dateOnly = att?.date ? new Date(att.date).toISOString().split("T")[0] : null;
           return dateOnly === today;
         })
       );
     }
-    if (myLv.data) {
+    if (leavesRes.status === 200 && leavesRes.data) {
       setMyLeaves(
-        (myLv.data as any[]).map((lv: any) => ({
+        (leavesRes.data as any[]).map((lv: any) => ({
           ...lv,
           leave_type: lv.leave_type ?? lv.type ?? "full_day",
         }))
       );
     }
 
-    // Load submissions for teacher assignments from backend
-    if (accessToken && a.data && a.data.length > 0) {
-      const allSubs = await Promise.all(
-        (a.data as any[]).map(async (ass: any) => {
-          const res = await api<any[]>(`/api/assignments/${ass.id}/submissions`, {
-            method: "GET",
-            accessToken,
-          });
-          return (res.status === 200 && res.data ? res.data : []).map((sub: any) => ({
-            ...sub,
-            assignment_id: String(sub.assignment_id ?? ass.id),
-          }));
-        })
-      );
-      setAllSubmissions(allSubs.flat());
-    } else {
-      setAllSubmissions([]);
+    // Process classes with teacher info (batch teacher requests)
+    if (classes.length > 0) {
+      const uniqueTeacherIds = [...new Set(classes.map((cls: any) => cls.teacher_id).filter(Boolean))];
+      const teacherMap = new Map<string, TeacherData>();
+      
+      // Batch fetch teacher info (with caching)
+      if (uniqueTeacherIds.length > 0) {
+        await Promise.all(
+          uniqueTeacherIds.map(async (teacherId) => {
+            try {
+              const teacherResponse = await api<TeacherData>(`/api/users/${teacherId}`, {
+                method: "GET",
+                accessToken,
+                useCache: true,
+                cacheTTL: 15 * 60 * 1000, // 15 min cache for user data
+              });
+              if (teacherResponse.status === 200 && teacherResponse.data) {
+                teacherMap.set(teacherId, teacherResponse.data);
+              }
+            } catch (error) {
+              console.error(`Failed to fetch teacher ${teacherId}:`, error);
+            }
+          })
+        );
+      }
+
+      const classesWithTeachers = classes.map((cls: any) => {
+        const teacherData = teacherMap.get(cls.teacher_id);
+        return {
+          ...cls,
+          scheduled_at: cls.schedule ? new Date(cls.schedule).toISOString() : cls.scheduled_at,
+          duration_minutes: cls.duration ?? cls.duration_minutes ?? 60,
+          subject: cls.subject || cls.batch || 'General',
+          batch: cls.batch || null,
+          teacher_name: teacherData?.full_name || 'Unknown Teacher',
+          teacher_email: teacherData?.email || '',
+        };
+      });
+      setClasses(classesWithTeachers);
     }
 
-    // Fetch students from backend Mongo users collection
-    if (accessToken && teacherClass) {
-      const usersRes = await api<any[]>(`/api/users/batch/${encodeURIComponent(teacherClass)}`, {
-        method: "GET",
-        accessToken,
-      });
-      if (usersRes.status === 200 && usersRes.data) {
-        const students = usersRes.data
-          .filter((u: any) => u.role === "student")
-          .map((u: any) => ({
-            user_id: String(u._id ?? u.id),
-            full_name: u.name ?? null,
-            batch: u.batch ?? u.assignedClass ?? null,
-            avatar_url: u.avatar_url ?? null,
-            class_name: u.assignedClass ?? teacherClass,
-            student_id: (u.studentId ?? u.student_id ?? null) as string | null,
-            is_approved: u.is_approved ?? true,
-          })) as StudentProfile[];
-        setAllStudents(students);
-        setPendingStudents(students.filter((s) => !s.is_approved));
+    if (assignments.length > 0) {
+      setAssignments(assignments);
+      
+      // Load submissions in background
+      if (assignments.length > 0) {
+        Promise.all(
+          assignments.map(async (ass: any) => {
+            const res = await api<any[]>(`/api/assignments/${ass.id}/submissions`, {
+              method: "GET",
+              accessToken,
+            });
+            return (res.status === 200 && res.data ? res.data : []).map((sub: any) => ({
+              ...sub,
+              assignment_id: String(sub.assignment_id ?? ass.id),
+            }));
+          })
+        ).then(allSubs => {
+          setAllSubmissions(allSubs.flat());
+        }).catch(err => {
+          console.error('Failed to load submissions:', err);
+          setAllSubmissions([]);
+        });
       }
     }
 
-    // Fetch attendance for all classes from backend
-    if (accessToken && c.data && c.data.length > 0) {
-      const attendanceRows = await Promise.all(
-        (c.data as any[]).map(async (cls: any) => {
+    // Load students data in background (with caching)
+    if (teacherClass) {
+      api<any[]>(`/api/users/batch/${encodeURIComponent(teacherClass)}`, {
+        method: "GET",
+        accessToken,
+        useCache: true,
+        cacheTTL: 3 * 60 * 1000, // 3 min cache for student data
+      }).then(usersRes => {
+        if (usersRes.status === 200 && usersRes.data) {
+          const students = usersRes.data
+            .filter((u: any) => u.role === "student")
+            .map((u: any) => ({
+              user_id: String(u._id ?? u.id),
+              full_name: u.name ?? null,
+              batch: u.batch ?? u.assignedClass ?? null,
+              avatar_url: u.avatar_url ?? null,
+              class_name: u.assignedClass ?? teacherClass,
+              student_id: (u.studentId ?? u.student_id ?? null) as string | null,
+              is_approved: u.is_approved ?? true,
+            })) as StudentProfile[];
+          setAllStudents(students);
+          setPendingStudents(students.filter((s) => !s.is_approved));
+        }
+      }).catch(err => {
+        console.error('Failed to load students:', err);
+      });
+    }
+
+    // Load attendance data in background
+    if (classes.length > 0) {
+      Promise.all(
+        classes.map(async (cls: any) => {
           const d = cls.scheduled_at ? new Date(cls.scheduled_at) : null;
           if (!d || isNaN(d.getTime())) {
             return { classId: cls.id, rows: [] };
@@ -404,17 +397,20 @@ export default function TeacherDashboard() {
           );
           return { classId: cls.id, rows: res.status === 200 && res.data ? res.data : [] };
         })
-      );
-      const map: Record<string, string[]> = {};
-      attendanceRows.forEach(({ classId, rows }) => {
-        map[classId] = rows
-          .filter((att: any) => att.status === "present" || att.status === "late" || att.status === "half_day")
-          .map((att: any) => String(att.student_id));
+      ).then(attendanceRows => {
+        const map: Record<string, string[]> = {};
+        attendanceRows.forEach(({ classId, rows }) => {
+          map[classId] = rows
+            .filter((att: any) => att.status === "present" || att.status === "late" || att.status === "half_day")
+            .map((att: any) => String(att.student_id));
+        });
+        setAttendanceData(map);
+      }).catch(err => {
+        console.error('Failed to load attendance:', err);
+        setAttendanceData({});
       });
-      setAttendanceData(map);
-    } else {
-      setAttendanceData({});
     }
+
     } finally {
       if (blockUi) {
         setLoading(false);
@@ -511,6 +507,7 @@ export default function TeacherDashboard() {
     toast.success("Class scheduled!");
     setShowClassForm(false);
     setClassForm({ title: "", subject: "", batch: "", description: "", scheduled_at: new Date(), duration_minutes: 60, location: "" });
+    clearApiCache(); // Clear cache after creating
     fetchAll();
   }
 

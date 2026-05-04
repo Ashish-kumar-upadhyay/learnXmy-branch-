@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, API_BASE, clearTokens, getAccessToken, getRefreshToken, setTokens } from "@/lib/backendApi";
+import { api, API_BASE, clearTokens, getAccessToken, getRefreshToken, setTokens, clearApiCache } from "@/lib/backendApi";
 
 type AppRole = "student" | "teacher" | "admin";
 
@@ -78,7 +78,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasRedirected = useRef(false);
 
   async function loadProfileWithAccessToken(accessToken: string) {
-    const profileRes = await api<ProfilePayload>("/api/auth/profile", { method: "GET", accessToken });
+    const profileRes = await api<ProfilePayload>("/api/auth/profile", { 
+      method: "GET", 
+      accessToken, 
+      useCache: true, 
+      cacheTTL: 5 * 60 * 1000 
+    });
     if (profileRes.status !== 200 || !profileRes.data) return false;
 
     const p = profileRes.data;
@@ -125,9 +130,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setLoading(true);
     try {
+      // Try loading profile with existing token first
       const ok = await loadProfileWithAccessToken(accessToken);
       if (ok) return;
 
+      // Only attempt refresh if profile loading fails
       if (refreshToken) {
         const refreshRes = await api<RefreshTokenPayload>("/api/auth/refresh-token", {
           method: "POST",
@@ -169,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } finally {
       clearTokens();
+      clearApiCache(); // Clear cache on sign out
       setUser(null);
       setProfile(null);
       setRoles([]);

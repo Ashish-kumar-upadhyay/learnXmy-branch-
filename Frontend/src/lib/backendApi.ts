@@ -39,9 +39,23 @@ export function getApiErrorMessage(error: unknown, fallback = "Something went wr
   return fallback;
 }
 
+import { apiCache } from "./cache";
+
+export function clearApiCache() {
+  apiCache.clear();
+}
+
 export async function api<T>(
   path: string,
-  options: RequestInit & { accessToken?: string; _retryAfterRefresh?: boolean } = {}
+  options: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    accessToken?: string; 
+    _retryAfterRefresh?: boolean; 
+    useCache?: boolean; 
+    cacheTTL?: number 
+  } = {}
 ): Promise<{ status: number; data?: T; message?: string; error?: unknown }> {
   const url = `${API_BASE}${path}`;
   const accessToken = options.accessToken;
@@ -50,6 +64,16 @@ export async function api<T>(
     ...(options.headers as Record<string, string> | undefined),
   };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+  // Check cache for GET requests
+  if (options.useCache !== false && (!options.method || options.method === 'GET')) {
+    const { accessToken, _retryAfterRefresh, useCache, cacheTTL, ...optionsForCache } = options;
+    const cacheKey = apiCache.generateKey(url, optionsForCache);
+    const cachedData = apiCache.get<T>(cacheKey);
+    if (cachedData) {
+      return { status: 200, data: cachedData };
+    }
+  }
 
   const res = await fetch(url, {
     ...options,
@@ -114,6 +138,14 @@ export async function api<T>(
     json && typeof json === "object" && "message" in json && typeof (json as { message?: unknown }).message === "string"
       ? (json as { message: string }).message
       : undefined;
+
+  // Cache successful GET responses
+  if (options.useCache !== false && (!options.method || options.method === 'GET') && res.ok) {
+    const { accessToken, _retryAfterRefresh, useCache, cacheTTL, ...optionsForCache } = options;
+    const cacheKey = apiCache.generateKey(url, optionsForCache);
+    apiCache.set(cacheKey, json as T, cacheTTL);
+  }
+
   return { status: res.status, data: json as T, message: msg };
 }
 
