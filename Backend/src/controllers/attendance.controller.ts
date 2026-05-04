@@ -220,7 +220,59 @@ export async function attendanceHistory(req: AuthRequest, res: Response) {
   const userId = req.params.userId;
   const query: { student_id: Types.ObjectId } = { student_id: new Types.ObjectId(userId) };
   const items = await Attendance.find(query).sort({ checked_in_at: -1 }).lean();
-  return ok(res, items);
+
+  // Get missed days from analytics
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  // Create attendance map for gap detection
+  const attendanceMap = new Map<string, any>();
+  items.forEach((record: any) => {
+    const dateKey = new Date(record.date).toDateString();
+    attendanceMap.set(dateKey, record);
+  });
+
+  // Create sorted attendance dates
+  const attendanceDates = Array.from(attendanceMap.keys())
+    .map(dateStr => new Date(dateStr))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  // Find gaps and create missed records
+  const missedRecords = [];
+  for (let i = 1; i < attendanceDates.length; i++) {
+    const prevDate = attendanceDates[i - 1];
+    const currentDate = attendanceDates[i];
+    const daysDiff = Math.floor((currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // If gap is more than 1 day, create missed records
+    if (daysDiff > 1) {
+      for (let dayOffset = 1; dayOffset < daysDiff; dayOffset++) {
+        const missedDate = new Date(prevDate.getTime() + (dayOffset * 24 * 60 * 60 * 1000));
+        
+        // Only add if within last 30 days
+        if (missedDate >= thirtyDaysAgo && missedDate <= new Date()) {
+          missedRecords.push({
+            _id: `missed-${missedDate.getTime()}`,
+            student_id: new Types.ObjectId(userId),
+            date: missedDate,
+            status: 'absent',
+            checked_in_at: missedDate,
+            notes: 'Automatically marked as absent (gap in attendance)',
+            class_id: null,
+            verified: false,
+            isMissedDay: true // Flag to identify missed days
+          });
+        }
+      }
+    }
+  }
+
+  // Combine actual records with missed records
+  const allRecords = [...items, ...missedRecords].sort((a, b) => 
+    new Date(b.date || b.checked_in_at).getTime() - new Date(a.date || a.checked_in_at).getTime()
+  );
+
+  return ok(res, allRecords);
 }
 
 export async function classAttendance(req: AuthRequest, res: Response) {
