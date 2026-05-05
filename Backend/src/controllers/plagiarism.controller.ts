@@ -285,7 +285,7 @@ export async function getPlagiarismReport(req: AuthRequest, res: Response) {
     }
 
     // Get student information
-    const { User } = await import('../models/User.model.js');
+    const { User } = await import('../models/User.model');
     const student = await User.findById(
       submission.student_id
     ).select('name email').lean();
@@ -363,11 +363,11 @@ export async function flagForReview(req: AuthRequest, res: Response) {
 
     // Create notification for admin (if teacher flagged)
     if (!req.authUser?.roles.includes('admin')) {
-      const { Notification } = await import('../models/Notification.model.js');
-      const { notifyUser } = await import('../realtime.js');
+      const { Notification } = await import('../models/Notification.model');
+      const { notifyUser } = await import('../realtime');
       
       // Find admin users
-      const { User } = await import('../models/User.model.js');
+      const { User } = await import('../models/User.model');
       const admins = await User.find({ roles: { $in: ['admin'] } }).select('_id').lean();
       
       if (admins.length > 0) {

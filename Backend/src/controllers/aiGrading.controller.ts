@@ -243,8 +243,8 @@ export async function applyAIGrading(req: AuthRequest, res: Response) {
     // Create notification for student
     const studentId = String(submission.student_id);
     if (applyGrade || applyFeedback) {
-      const { Notification } = await import('../models/Notification.model.js');
-      const { notifyUser } = await import('../realtime.js');
+      const { Notification } = await import('../models/Notification.model');
+      const { notifyUser } = await import('../realtime');
       
       const doc = await Notification.create({
         user_id: studentId,
