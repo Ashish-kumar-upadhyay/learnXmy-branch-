@@ -68,6 +68,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [avatarCacheBuster, setAvatarCacheBuster] = useState(Date.now());
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, roles, signOut, signOutLoading } = useAuth();
@@ -133,6 +134,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     window.addEventListener("learnx-notification-sound", sync);
     return () => window.removeEventListener("learnx-notification-sound", sync);
   }, []);
+
+  useEffect(() => {
+    // Update avatar cache buster when profile changes
+    if (profile?.avatar_url) {
+      setAvatarCacheBuster(Date.now());
+    }
+  }, [profile?.avatar_url]);
 
   const playNotificationBeep = async () => {
     if (localStorage.getItem("learnx_notification_sound") === "off") return;
@@ -531,12 +539,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   className="flex items-center gap-3 pl-1.5 pr-3 py-1.5 rounded-2xl hover:bg-muted/30 transition-all duration-200"
                 >
                   {profile?.avatar_url ? (
-                    <img src={profile.avatar_url} alt="Avatar" className="w-9 h-9 rounded-xl object-cover shadow-md" />
-                  ) : (
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-violet-500 flex items-center justify-center text-sm font-bold text-white shadow-md shadow-violet-500/15">
-                      {(profile?.full_name || "U").charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                    <img 
+                      src={`${profile.avatar_url}?t=${avatarCacheBuster}`} 
+                      alt="Avatar" 
+                      className="w-9 h-9 rounded-xl object-cover shadow-md"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <div className={`w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-violet-500 flex items-center justify-center text-sm font-bold text-white shadow-md shadow-violet-500/15 ${profile?.avatar_url ? 'hidden' : ''}`}>
+                    {(profile?.full_name || "U").charAt(0).toUpperCase()}
+                  </div>
                   <div className="text-left">
                     <p className="text-[13px] font-semibold text-foreground leading-tight">{profile?.full_name || "User"}</p>
                     <p className="text-[11px] text-muted-foreground capitalize leading-tight">{roles.includes("admin") ? "Admin" : roles.includes("teacher") ? "Teacher" : "Student"}</p>
@@ -655,12 +670,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 aria-label="Profile menu"
               >
                 {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="Avatar" className="w-full h-full rounded-lg object-cover" />
-                ) : (
-                  <div className="w-full h-full rounded-lg bg-gradient-to-br from-sky-500 to-violet-500 flex items-center justify-center text-[10px] md:text-xs font-bold text-white">
-                    {(profile?.full_name || "U").charAt(0).toUpperCase()}
-                  </div>
-                )}
+                  <img 
+                    src={`${profile.avatar_url}?t=${avatarCacheBuster}`} 
+                    alt="Avatar" 
+                    className="w-full h-full rounded-lg object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                <div className={`w-full h-full rounded-lg bg-gradient-to-br from-sky-500 to-violet-500 flex items-center justify-center text-[10px] md:text-xs font-bold text-white ${profile?.avatar_url ? 'hidden' : ''}`}>
+                  {(profile?.full_name || "U").charAt(0).toUpperCase()}
+                </div>
               </button>
             </div>
           </div>
