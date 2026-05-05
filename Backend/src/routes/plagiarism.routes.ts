@@ -6,7 +6,7 @@ import {
   getPlagiarismReport,
   flagForReview,
   getFlaggedSubmissions,
-} from '../controllers/plagiarism.controller.js';
+} from '../controllers/plagiarism.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();

@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { jwtConfig } from '../config/jwt.js';
+import { jwtConfig } from '../config/jwt';
 
 export type AccessPayload = {
   sub: string;

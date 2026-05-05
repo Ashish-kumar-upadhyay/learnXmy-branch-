@@ -1,4 +1,4 @@
-import { User } from '../models/User.model.js';
+import { User } from '../models/User.model';
 
 /**
  * Generates a unique student ID in format: STU + YYYY + 6-digit random number
