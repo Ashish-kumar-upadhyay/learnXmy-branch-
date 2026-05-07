@@ -20,7 +20,14 @@ function batchVariants(batchRaw: string) {
 async function notifyExamPublished(batch: string | null | undefined, title: string) {
   if (!batch) return;
   const variants = batchVariants(batch);
-  const students = await User.find({ role: 'student', assignedClass: { $in: variants } }).select('_id').lean();
+  console.log('Notifying students for batch variants:', variants);
+  const students = await User.find({ 
+    $or: [
+      { role: 'student', assignedClass: { $in: variants } },
+      { role: 'student', class_name: { $in: variants } }
+    ]
+  }).select('_id').lean();
+  console.log('Found students to notify:', students.length);
   if (!students.length) return;
   await Promise.all(
     (students as any[]).map(async (s) => {
@@ -48,13 +55,30 @@ export async function listExams(_req: AuthRequest, res: Response) {
   const batch = typeof _req.query.batch === 'string' ? _req.query.batch : undefined;
   const status = typeof _req.query.status === 'string' ? _req.query.status : undefined;
 
+  // Debug: Log query parameters
+  console.log('listExams query:', { teacherId, batch, status });
+
   const q: Record<string, unknown> = {};
   if (teacherId) q.teacher_id = new Types.ObjectId(teacherId);
-  if (batch) q.batch = { $in: batchVariants(batch) };
+  if (batch) {
+    const variants = batchVariants(batch);
+    console.log('Batch variants for query:', variants);
+    q.$or = [
+      { batch: { $in: variants } },
+      { 'class_name': { $in: variants } },
+      { assignedClass: { $in: variants } }
+    ];
+  }
   if (status) q.status = status;
+
+  console.log('Final query object:', q);
 
   const items = await Exam.find(q).sort({ created_at: -1 }).lean();
   const out = (items as any[]).map((e) => ({ ...e, id: String(e._id) }));
+  
+  // Debug: Log results
+  console.log('Exams found:', out.map(e => ({ title: e.title, batch: e.batch, status: e.status })));
+  
   return ok(res, out);
 }
 
