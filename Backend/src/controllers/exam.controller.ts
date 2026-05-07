@@ -9,23 +9,10 @@ import { Notification } from '../models/Notification.model';
 import { notifyUser } from '../realtime';
 import { ok, created, fail } from '../utils/response';
 
-function batchVariants(batchRaw: string) {
-  const b = String(batchRaw || '').trim();
-  const stripped = b.replace(/^batch\s+/i, '').trim();
-  const withPrefix = stripped ? `Batch ${stripped}` : '';
-  const out = [b, stripped, withPrefix].filter(Boolean);
-  return Array.from(new Set(out));
-}
 
-async function notifyExamPublished(batch: string | null | undefined, title: string) {
-  if (!batch) return;
-  const variants = batchVariants(batch);
-  const students = await User.find({ 
-    $or: [
-      { role: 'student', assignedClass: { $in: variants } },
-      { role: 'student', class_name: { $in: variants } }
-    ]
-  }).select('_id').lean();
+async function notifyExamPublished(title: string) {
+  // Notify all students when exam is published (no batch filtering)
+  const students = await User.find({ role: 'student' }).select('_id').lean();
   if (!students.length) return;
   await Promise.all(
     (students as any[]).map(async (s) => {
@@ -50,22 +37,10 @@ async function notifyExamPublished(batch: string | null | undefined, title: stri
 
 export async function listExams(_req: AuthRequest, res: Response) {
   const teacherId = typeof _req.query.teacher_id === 'string' ? _req.query.teacher_id : undefined;
-  const batch = typeof _req.query.batch === 'string' ? _req.query.batch : undefined;
   const status = typeof _req.query.status === 'string' ? _req.query.status : undefined;
 
   const q: Record<string, unknown> = {};
   if (teacherId) q.teacher_id = new Types.ObjectId(teacherId);
-  
-  // For students: Show all published exams regardless of batch (unless specifically filtered)
-  // For teachers/admins: Apply batch filter if specified
-  if (batch && !teacherId) {
-    const variants = batchVariants(batch);
-    q.$or = [
-      { batch: { $in: variants } },
-      { 'class_name': { $in: variants } },
-      { assignedClass: { $in: variants } }
-    ];
-  }
   if (status) q.status = status;
 
   const items = await Exam.find(q).sort({ created_at: -1 }).lean();
@@ -87,7 +62,7 @@ export async function createExam(req: AuthRequest, res: Response) {
     if (String(body.status ?? '').toLowerCase() === 'published') {
       const qCount = await ExamQuestion.countDocuments({ exam_id: doc._id });
       if (qCount !== 5) return fail(res, 400, 'Publish requires exactly 5 questions');
-      await notifyExamPublished(body.batch ?? null, body.title ?? 'New Exam');
+      await notifyExamPublished(body.title ?? 'New Exam');
     }
     return created(res, { ...doc.toObject(), id: String(doc._id) });
   } catch (error) {
@@ -113,7 +88,7 @@ export async function updateExam(req: AuthRequest, res: Response) {
   const e = await Exam.findByIdAndUpdate(req.params.id, { $set: body }, { new: true }).lean();
   if (!e) return fail(res, 404, 'Not found');
   if (String((e as any).status ?? '').toLowerCase() === 'published') {
-    await notifyExamPublished((e as any).batch ?? null, (e as any).title ?? 'New Exam');
+    await notifyExamPublished((e as any).title ?? 'New Exam');
   }
   return ok(res, e);
 }
@@ -318,6 +293,51 @@ export async function examResults(req: AuthRequest, res: Response) {
     student_id: String(s.student_id),
   }));
   return ok(res, out);
+}
+
+export async function examStatistics(req: AuthRequest, res: Response) {
+  const eid = new Types.ObjectId(req.params.id);
+  
+  // Get all submissions for this exam
+  const submissions = await ExamSubmission.find({ exam_id: eid }).lean();
+  
+  // Calculate statistics
+  const totalStudents = submissions.length;
+  const submittedStudents = submissions.filter(s => 
+    s.status === 'submitted' || s.status === 'auto_submitted'
+  ).length;
+  const inProgressStudents = submissions.filter(s => s.status === 'in_progress').length;
+  
+  // Calculate score statistics
+  const scores = submissions
+    .filter(s => s.score !== undefined && s.score !== null)
+    .map(s => s.score as number);
+  
+  const averageScore = scores.length > 0 
+    ? Math.round((scores.reduce((sum, score) => sum + score, 0) / scores.length) * 100) / 100 
+    : 0;
+  
+  const highestScore = scores.length > 0 ? Math.max(...scores) : 0;
+  const lowestScore = scores.length > 0 ? Math.min(...scores) : 0;
+  
+  // Calculate grade distribution
+  const gradeDistribution = {
+    excellent: scores.filter(s => s >= 80).length,
+    good: scores.filter(s => s >= 60 && s < 80).length,
+    average: scores.filter(s => s >= 40 && s < 60).length,
+    poor: scores.filter(s => s < 40).length
+  };
+  
+  return ok(res, {
+    totalStudents,
+    submittedStudents,
+    inProgressStudents,
+    completionRate: totalStudents > 0 ? Math.round((submittedStudents / totalStudents) * 100) : 0,
+    averageScore,
+    highestScore,
+    lowestScore,
+    gradeDistribution
+  });
 }
 
 export async function mySubmissions(req: AuthRequest, res: Response) {
