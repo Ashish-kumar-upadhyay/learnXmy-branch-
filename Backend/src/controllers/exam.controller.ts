@@ -20,14 +20,12 @@ function batchVariants(batchRaw: string) {
 async function notifyExamPublished(batch: string | null | undefined, title: string) {
   if (!batch) return;
   const variants = batchVariants(batch);
-  console.log('Notifying students for batch variants:', variants);
   const students = await User.find({ 
     $or: [
       { role: 'student', assignedClass: { $in: variants } },
       { role: 'student', class_name: { $in: variants } }
     ]
   }).select('_id').lean();
-  console.log('Found students to notify:', students.length);
   if (!students.length) return;
   await Promise.all(
     (students as any[]).map(async (s) => {
@@ -55,14 +53,13 @@ export async function listExams(_req: AuthRequest, res: Response) {
   const batch = typeof _req.query.batch === 'string' ? _req.query.batch : undefined;
   const status = typeof _req.query.status === 'string' ? _req.query.status : undefined;
 
-  // Debug: Log query parameters
-  console.log('listExams query:', { teacherId, batch, status });
-
   const q: Record<string, unknown> = {};
   if (teacherId) q.teacher_id = new Types.ObjectId(teacherId);
-  if (batch) {
+  
+  // For students: Show all published exams regardless of batch (unless specifically filtered)
+  // For teachers/admins: Apply batch filter if specified
+  if (batch && !teacherId) {
     const variants = batchVariants(batch);
-    console.log('Batch variants for query:', variants);
     q.$or = [
       { batch: { $in: variants } },
       { 'class_name': { $in: variants } },
@@ -71,13 +68,8 @@ export async function listExams(_req: AuthRequest, res: Response) {
   }
   if (status) q.status = status;
 
-  console.log('Final query object:', q);
-
   const items = await Exam.find(q).sort({ created_at: -1 }).lean();
   const out = (items as any[]).map((e) => ({ ...e, id: String(e._id) }));
-  
-  // Debug: Log results
-  console.log('Exams found:', out.map(e => ({ title: e.title, batch: e.batch, status: e.status })));
   
   return ok(res, out);
 }
@@ -88,13 +80,20 @@ export async function createExam(req: AuthRequest, res: Response) {
   if (!teacherId) return fail(res, 400, 'teacher_id is required');
   body.teacher_id = new Types.ObjectId(teacherId);
   if (body.class_id) body.class_id = new Types.ObjectId(body.class_id);
-  const doc = await Exam.create(body);
-  if (String(body.status ?? '').toLowerCase() === 'published') {
-    const qCount = await ExamQuestion.countDocuments({ exam_id: doc._id });
-    if (qCount !== 5) return fail(res, 400, 'Publish requires exactly 5 questions');
-    await notifyExamPublished(body.batch ?? null, body.title ?? 'New Exam');
+  
+  try {
+    const doc = await Exam.create(body);
+    
+    if (String(body.status ?? '').toLowerCase() === 'published') {
+      const qCount = await ExamQuestion.countDocuments({ exam_id: doc._id });
+      if (qCount !== 5) return fail(res, 400, 'Publish requires exactly 5 questions');
+      await notifyExamPublished(body.batch ?? null, body.title ?? 'New Exam');
+    }
+    return created(res, { ...doc.toObject(), id: String(doc._id) });
+  } catch (error) {
+    console.error('Error creating exam:', error);
+    return fail(res, 500, 'Failed to create exam: ' + (error instanceof Error ? error.message : 'Unknown error'));
   }
-  return created(res, { ...doc.toObject(), id: String(doc._id) });
 }
 
 export async function getExam(req: AuthRequest, res: Response) {
