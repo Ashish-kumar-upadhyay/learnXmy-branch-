@@ -340,6 +340,33 @@ export async function examStatistics(req: AuthRequest, res: Response) {
   });
 }
 
+export async function examStudentPerformance(req: AuthRequest, res: Response) {
+  const eid = new Types.ObjectId(req.params.id);
+  
+  // Get all submissions for this exam with student details
+  const submissions = await ExamSubmission.find({ exam_id: eid })
+    .populate('student_id', 'name email')
+    .sort({ submitted_at: -1 })
+    .lean();
+  
+  const performanceData = submissions.map((submission: any) => ({
+    id: String(submission._id),
+    exam_id: String(submission.exam_id),
+    student_id: String(submission.student_id._id),
+    student_name: submission.student_id.name || 'Unknown Student',
+    student_email: submission.student_id.email || '',
+    score: submission.score || 0,
+    percentage: submission.percentage || 0,
+    status: submission.status,
+    submitted_at: submission.submitted_at,
+    started_at: submission.started_at,
+    auto_submit_reason: submission.auto_submit_reason,
+    warning_count: submission.warning_count || 0
+  }));
+  
+  return ok(res, performanceData);
+}
+
 export async function mySubmissions(req: AuthRequest, res: Response) {
   if (!req.authUser) return fail(res, 401, 'Unauthorized');
   const sid = new Types.ObjectId(req.authUser.id);

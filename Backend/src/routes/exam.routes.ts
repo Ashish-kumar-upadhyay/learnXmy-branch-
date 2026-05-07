@@ -18,6 +18,7 @@ r.delete('/:id/questions/:qid', requireRoles('teacher', 'admin'), ctrl.deleteQue
 r.post('/:id/submit', requireRoles('student', 'admin'), ctrl.submitExam);
 r.get('/:id/results', requireRoles('teacher', 'admin'), ctrl.examResults);
 r.get('/:id/statistics', requireRoles('teacher', 'admin'), ctrl.examStatistics);
+r.get('/:id/student-performance', requireRoles('teacher', 'admin'), ctrl.examStudentPerformance);
 r.get('/:id', ctrl.getExam);
 r.put('/:id', requireRoles('teacher', 'admin'), ctrl.updateExam);
 r.delete('/:id', requireRoles('teacher', 'admin'), ctrl.deleteExam);
