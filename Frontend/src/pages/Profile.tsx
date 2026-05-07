@@ -2,16 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Camera, Save, User, Mail, BookOpen, FileText, Loader2, Check } from "lucide-react";
+import { Camera, Save, User, Mail, BookOpen, Loader2, GraduationCap } from "lucide-react";
 import { api, API_BASE, getAccessToken } from "@/lib/backendApi";
-
-const DEFAULT_AVATARS = [
-  { id: "male1", url: "https://api.dicebear.com/9.x/adventurer/svg?seed=Leo&backgroundColor=b6e3f4", label: "Male 1" },
-  { id: "male2", url: "https://api.dicebear.com/9.x/adventurer/svg?seed=Jack&backgroundColor=c0aede", label: "Male 2" },
-  { id: "female1", url: "https://api.dicebear.com/9.x/adventurer/svg?seed=Lily&backgroundColor=ffd5dc", label: "Female 1" },
-  { id: "female2", url: "https://api.dicebear.com/9.x/adventurer/svg?seed=Sophia&backgroundColor=d1d4f9", label: "Female 2" },
-  { id: "neutral", url: "https://api.dicebear.com/9.x/adventurer/svg?seed=Riley&backgroundColor=ffdfbf", label: "Neutral" },
-];
 
 function resolveAvatarUrl(input: string | null | undefined): string | null {
   if (!input || typeof input !== "string") return null;
@@ -96,29 +88,6 @@ export default function Profile() {
     await refreshProfile?.();
   };
 
-  const selectDefaultAvatar = async (url: string) => {
-    const accessToken = getAccessToken();
-    if (!accessToken) return;
-    if (!user) return;
-    
-    // Update local state immediately for better UX
-    setAvatarUrl(url);
-    
-    // Save to backend
-    const out = await api("/api/auth/profile", {
-      method: "PUT",
-      accessToken,
-      body: JSON.stringify({ avatar_url: url }),
-    });
-    
-    if (out.status !== 200) {
-      // Revert local state if backend update failed
-      setAvatarUrl(resolveAvatarUrl(profile?.avatar_url));
-    }
-    
-    // Refresh profile to ensure consistency
-    await refreshProfile?.();
-  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -188,26 +157,36 @@ export default function Profile() {
             </p>
           )}
         </div>
+      </div>
 
-        {/* Default Avatar Options */}
-        <div className="w-full">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3 text-center font-medium">Or choose an avatar</p>
-          <div className="flex justify-center gap-3 flex-wrap">
-            {DEFAULT_AVATARS.map((av) => (
-              <button
-                key={av.id}
-                onClick={() => selectDefaultAvatar(av.url)}
-                className={`relative w-14 h-14 rounded-xl overflow-hidden border-2 transition-all hover:scale-110 ${avatarUrl === av.url ? "border-primary ring-2 ring-primary/30" : "border-border/50 hover:border-primary/50"}`}
-              >
-                <img src={av.url} alt={av.label} className="w-full h-full object-cover" />
-                {avatarUrl === av.url && (
-                  <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                    <Check className="w-4 h-4 text-primary" />
-                  </div>
-                )}
-              </button>
-            ))}
+      {/* User Info Card */}
+      <div className="glass-card p-8">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/20">
+            <Mail className="w-4 h-4 text-primary" />
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Email Address</p>
+              <p className="text-sm font-medium text-foreground">{user?.email || "Not available"}</p>
+            </div>
           </div>
+
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/20">
+            <GraduationCap className="w-4 h-4 text-primary" />
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Student Code</p>
+              <p className="text-sm font-medium text-foreground">{profile?.student_id || user?.id || "Not available"}</p>
+            </div>
+          </div>
+
+          {className && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/20">
+              <BookOpen className="w-4 h-4 text-primary" />
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Class</p>
+                <p className="text-sm font-medium text-foreground">{className}</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -216,6 +195,21 @@ export default function Profile() {
         <div>
           <label className={labelClass}><User className="w-3 h-3 inline mr-1" />Full Name</label>
           <input className={inputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" maxLength={100} />
+        </div>
+        <div>
+          <label className={labelClass}><BookOpen className="w-3 h-3 inline mr-1" />Class Name</label>
+          <input 
+            className={inputClass} 
+            value={className} 
+            onChange={(e) => setClassName(e.target.value)} 
+            placeholder="Your class name" 
+            maxLength={50}
+            disabled={roles.includes("student")}
+            readOnly={roles.includes("student")}
+          />
+          {roles.includes("student") && (
+            <p className="text-xs text-muted-foreground mt-1">Class name cannot be changed by students</p>
+          )}
         </div>
                 <button onClick={handleSave} disabled={saving} className="w-full py-3 rounded-xl font-semibold text-sm btn-premium flex items-center justify-center gap-2 disabled:opacity-50">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
