@@ -179,14 +179,11 @@ export async function getProfileUser(userId: string) {
   if (!user) return null;
   const roles: AppRole[] = [user.role];
   
-  // Keep avatar URL as-is for now (validation can be done separately)
-  let validatedAvatarUrl = user.avatar_url;
-  
   return {
     id: String(user._id),
     email: user.email,
     full_name: user.name,
-    avatar_url: validatedAvatarUrl ?? null,
+    avatar_url: (user as any).avatar_url ?? null,
     batch: null,
     class_name: user.assignedClass ?? null,
     is_approved: (user as any).is_approved ?? true,
@@ -210,7 +207,7 @@ export async function updateProfile(
   const $set: Record<string, unknown> = {};
   if (body.full_name !== undefined) $set.name = body.full_name;
   if (body.class_name !== undefined) $set.assignedClass = body.class_name ?? null;
-  if (body.avatar_url !== undefined) $set.avatar_url = body.avatar_url ?? null;
+  if (body.avatar_url !== undefined) $set.avatar_url = body.avatar_url;
 
   const user = await User.findByIdAndUpdate(userId, { $set }, { new: true }).lean();
 
