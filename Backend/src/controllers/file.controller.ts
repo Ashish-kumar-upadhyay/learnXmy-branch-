@@ -22,8 +22,9 @@ export async function uploadFile(req: AuthRequest, res: Response) {
   }
   const meta = await fileService.saveFileRecord(req.authUser.id, kind, rel, file.mimetype, file.size, file.originalname);
   if (kind === 'avatar') {
-    // Store full URL to ensure persistence and proper access
-    const fullAvatarUrl = `${req.protocol}://${req.get('host')}/api/files/${meta._id}`;
+    // Store relative URL for consistency and better frontend handling
+    const relativeAvatarUrl = `/api/files/${meta._id}`;
+    const fullAvatarUrl = `${req.protocol}://${req.get('host')}${relativeAvatarUrl}`;
     
     try {
       // Get current user to clean up old avatar if exists
@@ -37,7 +38,8 @@ export async function uploadFile(req: AuthRequest, res: Response) {
         }
       }
       
-      await User.findByIdAndUpdate(req.authUser.id, { avatar_url: fullAvatarUrl } as Record<string, unknown>);
+      // Store relative URL in database for consistency
+      await User.findByIdAndUpdate(req.authUser.id, { avatar_url: relativeAvatarUrl } as Record<string, unknown>);
       return ok(res, { id: String(meta._id), url: fullAvatarUrl });
     } catch (error) {
       // If database update fails, clean up the uploaded file
@@ -105,7 +107,7 @@ export async function validateAvatarUrl(userId: string, avatarUrl: string | null
   if (!avatarUrl) return null;
   
   try {
-    // Extract file ID from avatar URL
+    // Extract file ID from avatar URL (handle both relative and absolute URLs)
     const urlMatch = avatarUrl.match(/\/api\/files\/(.+)$/);
     if (!urlMatch) return avatarUrl; // Return as-is if format doesn't match
     
