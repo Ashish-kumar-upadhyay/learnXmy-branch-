@@ -19,17 +19,11 @@ type ProfilePayload = {
 };
 type RefreshTokenPayload = { accessToken?: string; refreshToken?: string };
 
-function normalizeAvatarUrl(rawAvatar: unknown): string | null {
-  if (typeof rawAvatar !== "string" || rawAvatar.trim().length === 0) return null;
-  const avatar = rawAvatar.trim();
-  if (avatar.startsWith("http://localhost")) {
-    const relativePath = avatar.replace(/^http:\/\/localhost:\d+/, "");
-    return `${API_BASE}${relativePath}`;
-  }
-  if (avatar.startsWith("http://") || avatar.startsWith("https://")) return avatar;
-  if (avatar.startsWith("/api/files/")) return `${API_BASE}${avatar}`;
-  if (avatar.startsWith("/")) return `${API_BASE}${avatar}`;
-  return `${API_BASE}/api/files/${avatar}`;
+function normalizeAvatarUrl(avatarUrl: string | null): string | null {
+  if (!avatarUrl) return null;
+  if (avatarUrl.startsWith('http')) return avatarUrl;
+  if (avatarUrl.startsWith('/api/files/')) return `${API_BASE}${avatarUrl}`;
+  return `${API_BASE}/api/files/${avatarUrl}`;
 }
 
 interface AuthContextType {
@@ -82,12 +76,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: "GET", 
       accessToken, 
       useCache: true, 
-      cacheTTL: 5 * 60 * 1000 
+      cacheTTL: 30 * 1000 // Reduced from 5 minutes to 30 seconds
     });
     if (profileRes.status !== 200 || !profileRes.data) return false;
 
     const p = profileRes.data;
-    p.avatar_url = normalizeAvatarUrl(p?.avatar_url);
+    p.avatar_url = normalizeAvatarUrl(p.avatar_url);
     const nextRoles = (p.roles || []) as AppRole[];
     setProfile(p);
     setRoles(nextRoles);

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, FileText, BarChart3, Trophy,
-  Bell, GraduationCap, ChevronLeft, ChevronRight, Zap, Bot, LogOut, School, ClipboardCheck, UserCircle, CalendarDays,   Menu, X, Settings, CalendarOff, Clock, PenTool, IndianRupee, LifeBuoy, Volume2, VolumeX, Search
+  Bell, GraduationCap, ChevronLeft, ChevronRight, Zap, Bot, LogOut, School, ClipboardCheck, UserCircle, CalendarDays,   Menu, X, Settings, CalendarOff, Clock, PenTool, IndianRupee, LifeBuoy, Volume2, VolumeX, Search, Users
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, getAccessToken } from "@/lib/backendApi";
@@ -34,6 +34,7 @@ const teacherNavItems = [
   { icon: BookOpen, label: "Lectures", path: "/lectures" },
   { icon: FileText, label: "Assignments", path: "/assignments" },
   { icon: PenTool, label: "Exams", path: "/exams" },
+  { icon: Users, label: "Students Report", path: "/students-report" },
   { icon: Clock, label: "Timetable", path: "/timetable" },
   { icon: ClipboardCheck, label: "Attendance", path: "/teacher-attendance" },
   { icon: CalendarOff, label: "Leave Requests", path: "/leave-requests" },
@@ -50,6 +51,7 @@ const adminNavItems = [
   { icon: BookOpen, label: "Lectures", path: "/lectures" },
   { icon: FileText, label: "Assignments", path: "/assignments" },
   { icon: PenTool, label: "Exams", path: "/exams" },
+  { icon: Users, label: "Students Report", path: "/admin-students-report" },
   { icon: Clock, label: "Timetable", path: "/timetable" },
   { icon: IndianRupee, label: "Fees", path: "/fees" },
   { icon: CalendarOff, label: "Leave Requests", path: "/leave-requests" },

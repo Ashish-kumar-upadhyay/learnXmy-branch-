@@ -25,11 +25,15 @@ import TeacherDashboard from "./pages/TeacherDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Attendance from "./pages/Attendance";
 import TeacherStudentAttendance from "./pages/TeacherStudentAttendance";
+import StudentsReport from "./pages/StudentsReport";
+import AdminStudentsReport from "./pages/AdminStudentsReport";
 import Profile from "./pages/Profile";
 import SprintPlan from "./pages/SprintPlan";
 import LeaveRequests from "./pages/LeaveRequests";
 import Timetable from "./pages/Timetable";
 import ExamsPage from "./pages/Exams";
+import ExamQuestions from "./pages/ExamQuestions";
+import ExamResults from "./pages/ExamResults";
 import FeeManagement from "./pages/FeeManagement";
 import SupportTickets from "./pages/SupportTickets";
 import Classes from "./pages/Classes";
@@ -128,11 +132,15 @@ const App = () => (
             <Route path="/leave-requests" element={<ProtectedRoute><DashboardLayout><LeaveRequests /></DashboardLayout></ProtectedRoute>} />
             <Route path="/timetable" element={<ProtectedRoute><DashboardLayout><Timetable /></DashboardLayout></ProtectedRoute>} />
             <Route path="/exams" element={<ProtectedRoute><DashboardLayout><ExamsPage /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/exams/:examId/questions" element={<ProtectedRoute><DashboardLayout><ExamQuestions /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/exams/:examId/results" element={<ProtectedRoute><DashboardLayout><ExamResults /></DashboardLayout></ProtectedRoute>} />
             <Route path="/fees" element={<ProtectedRoute><DashboardLayout><FeeManagement /></DashboardLayout></ProtectedRoute>} />
             <Route path="/classes" element={<ProtectedRoute><DashboardLayout><Classes /></DashboardLayout></ProtectedRoute>} />
             <Route path="/teacher" element={<ProtectedRoute><DashboardLayout><TeacherDashboard /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/students-report" element={<ProtectedRoute><DashboardLayout><StudentsReport /></DashboardLayout></ProtectedRoute>} />
             <Route path="/teacher-attendance" element={<ProtectedRoute><DashboardLayout><TeacherStudentAttendance /></DashboardLayout></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><DashboardLayout><AdminDashboard /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/admin-students-report" element={<ProtectedRoute><DashboardLayout><AdminStudentsReport /></DashboardLayout></ProtectedRoute>} />
             <Route path="/support" element={<ProtectedRoute><DashboardLayout><SupportTickets /></DashboardLayout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
               </Routes>
