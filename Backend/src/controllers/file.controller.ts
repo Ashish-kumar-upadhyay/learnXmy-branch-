@@ -21,30 +21,20 @@ export async function uploadFile(req: AuthRequest, res: Response) {
     rel = path.join(req.authUser.id, kind, path.basename(file.path)).replace(/\\/g, '/');
   }
   const meta = await fileService.saveFileRecord(req.authUser.id, kind, rel, file.mimetype, file.size, file.originalname);
+  
+  // Handle avatar uploads - store relative URL in user profile
   if (kind === 'avatar') {
-    // Store full URL to ensure persistence and proper access
-    const fullAvatarUrl = `${req.protocol}://${req.get('host')}/api/files/${meta._id}`;
-    
+    const avatarUrl = `/api/files/${meta._id}`;
     try {
-      // Get current user to clean up old avatar if exists
-      const currentUser = await User.findById(req.authUser.id).select('avatar_url').lean();
-      if (currentUser?.avatar_url) {
-        // Extract file ID from old avatar URL for cleanup
-        const oldUrlMatch = currentUser.avatar_url.match(/\/api\/files\/(.+)$/);
-        if (oldUrlMatch && oldUrlMatch[1]) {
-          // Clean up old avatar file
-          await fileService.deleteMeta(oldUrlMatch[1], req.authUser.id).catch(() => {});
-        }
-      }
-      
-      await User.findByIdAndUpdate(req.authUser.id, { avatar_url: fullAvatarUrl } as Record<string, unknown>);
-      return ok(res, { id: String(meta._id), url: fullAvatarUrl });
+      await User.findByIdAndUpdate(req.authUser.id, { avatar_url: avatarUrl } as Record<string, unknown>);
+      return ok(res, { id: String(meta._id), url: avatarUrl });
     } catch (error) {
       // If database update fails, clean up the uploaded file
       await fileService.deleteMeta(String(meta._id), req.authUser.id).catch(() => {});
       throw error;
     }
   }
+  
   return ok(res, { id: String(meta._id), url: `/api/files/${meta._id}` });
 }
 
@@ -100,37 +90,3 @@ export async function getSelfie(req: AuthRequest, res: Response) {
   return getFile(req, res);
 }
 
-// Utility function to validate and fix avatar URLs
-export async function validateAvatarUrl(userId: string, avatarUrl: string | null): Promise<string | null> {
-  if (!avatarUrl) return null;
-  
-  try {
-    // Extract file ID from avatar URL
-    const urlMatch = avatarUrl.match(/\/api\/files\/(.+)$/);
-    if (!urlMatch) return avatarUrl; // Return as-is if format doesn't match
-    
-    const fileId = urlMatch[1];
-    const meta = await fileService.getMetaById(fileId);
-    
-    if (!meta) {
-      // File metadata doesn't exist, clear the avatar URL
-      await User.findByIdAndUpdate(userId, { avatar_url: null } as Record<string, unknown>);
-      return null;
-    }
-    
-    // Check if file exists on disk
-    const filePath = path.resolve(env.uploadDir, meta.path);
-    try {
-      await fs.access(filePath);
-      return avatarUrl; // URL is valid
-    } catch {
-      // File doesn't exist on disk, clean up
-      await fileService.deleteMeta(fileId, userId).catch(() => {});
-      await User.findByIdAndUpdate(userId, { avatar_url: null } as Record<string, unknown>);
-      return null;
-    }
-  } catch (error) {
-    console.error('Error validating avatar URL:', error);
-    return avatarUrl; // Return original URL on error
-  }
-}

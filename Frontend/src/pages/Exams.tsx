@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, Clock, Award, CheckCircle2, Play, Eye, Trash2, Camera, AlertTriangle, Shield, Wand2, RefreshCw, Calendar } from "lucide-react";
+import { Plus, Clock, Award, CheckCircle2, Play, Eye, Trash2, Camera, AlertTriangle, Shield, Wand2, RefreshCw, Calendar, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { api, API_BASE, getAccessToken } from "@/lib/backendApi";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import * as faceDetection from "@tensorflow-models/face-detection";
+import "@tensorflow/tfjs";
 
 interface Exam {
   id: string;
@@ -78,13 +82,29 @@ interface AiDraftQuestion {
   selected: boolean;
 }
 
-type View = "list" | "create" | "questions" | "attempt" | "result";
+interface StudentPerformance {
+  id: string;
+  exam_id: string;
+  student_id: string;
+  student_name: string;
+  student_email: string;
+  score: number;
+  percentage: number;
+  status: string;
+  submitted_at?: string;
+  started_at?: string;
+  auto_submit_reason?: string;
+  warning_count: number;
+}
+
+type View = "list" | "create" | "questions" | "attempt" | "result" | "student-reports";
 
 const ACTIVE_EXAM_KEY = "learnx_active_exam";
 const ACTIVE_ANSWERS_KEY = "learnx_active_exam_answers";
 
 export default function Exams() {
   const { user, roles, profile } = useAuth();
+  const navigate = useNavigate();
   const isStudent = !roles.includes("admin") && !roles.includes("teacher");
   const isTeacher = roles.includes("teacher");
   const isAdmin = roles.includes("admin");
@@ -93,6 +113,9 @@ export default function Exams() {
   const tabSwitchedRef = useRef(false);
   const lastWarningRef = useRef<string>("");
   const lastWarningTypeRef = useRef<"warning" | "error">("warning");
+  const faceDetectorRef = useRef<faceDetection.FaceDetector | null>(null);
+  const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPersonCountRef = useRef<number>(0);
 
   const normalizeBatch = (b?: string | null) => {
     const s = String(b ?? "").trim();
@@ -116,7 +139,6 @@ export default function Exams() {
 
   const [examForm, setExamForm] = useState({ 
   title: "", 
-  batch: "", 
   exam_type: "quiz", 
   duration_minutes: 10,
   due_date: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
@@ -128,9 +150,45 @@ export default function Exams() {
   const [aiTopic, setAiTopic] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiDrafts, setAiDrafts] = useState<AiDraftQuestion[]>([]);
+  const [examStatistics, setExamStatistics] = useState<Record<string, {
+    totalStudents: number;
+    submittedStudents: number;
+    inProgressStudents: number;
+    completionRate: number;
+    averageScore: number;
+    highestScore: number;
+    lowestScore: number;
+    gradeDistribution: {
+      excellent: number;
+      good: number;
+      average: number;
+      poor: number;
+    };
+  }>>({});
+  const [studentPerformance, setStudentPerformance] = useState<Record<string, StudentPerformance[]>>({});
+  const [deletingExamId, setDeletingExamId] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    examId: string | null;
+    examTitle: string | null;
+  }>({ isOpen: false, examId: null, examTitle: null });
+  const [selectedExamForReports, setSelectedExamForReports] = useState<Exam | null>(null);
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(0);
+  const [personCount, setPersonCount] = useState(0);
+  const [personDetectionWarning, setPersonDetectionWarning] = useState(false);
+  const [personWarningCount, setPersonWarningCount] = useState(0);
+
+  const stopFaceDetection = useCallback(() => {
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = null;
+    }
+    setPersonCount(0);
+    setPersonDetectionWarning(false);
+    setPersonWarningCount(0);
+  }, []);
 
   const clearMedia = useCallback(() => {
     if (streamRef.current) {
@@ -138,7 +196,8 @@ export default function Exams() {
       streamRef.current = null;
     }
     setCameraReady(false);
-  }, []);
+    stopFaceDetection();
+  }, [stopFaceDetection]);
 
   const playAlertBeep = useCallback(() => {
     try {
@@ -164,6 +223,77 @@ export default function Exams() {
     localStorage.removeItem(ACTIVE_ANSWERS_KEY);
   }, []);
 
+  const fetchExamStatistics = useCallback(async (examIds: string[]) => {
+    const accessToken = getAccessToken();
+    if (!accessToken || examIds.length === 0) return;
+
+    const statsPromises = examIds.map(async (examId) => {
+      try {
+        const res = await api(`/api/exams/${examId}/statistics`, { method: "GET", accessToken });
+        if (res.status === 200 && res.data) {
+          return { examId, stats: res.data };
+        }
+        return null;
+      } catch (error) {
+        console.error(`Failed to fetch statistics for exam ${examId}:`, error);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(statsPromises);
+    const newStats: Record<string, any> = {};
+    
+    results.forEach(result => {
+      if (result) {
+        newStats[result.examId] = result.stats;
+      }
+    });
+
+    setExamStatistics(newStats);
+  }, []);
+
+  const fetchStudentPerformance = useCallback(async (examIds: string[]) => {
+    console.log('🔍 fetchStudentPerformance called with examIds:', examIds);
+    const accessToken = getAccessToken();
+    if (!accessToken || examIds.length === 0) {
+      console.log('❌ No access token or empty examIds');
+      return;
+    }
+
+    const performancePromises = examIds.map(async (examId) => {
+      try {
+        console.log(`📡 Fetching student performance for exam ${examId}...`);
+        const res = await api<StudentPerformance[]>(`/api/exams/${examId}/student-performance`, { method: "GET", accessToken });
+        console.log(`📊 Response for exam ${examId}:`, { status: res.status, data: res.data });
+        
+        if (res.status === 200 && res.data) {
+          console.log(`✅ Success for exam ${examId}, got ${res.data.length} students`);
+          return { examId, performance: res.data as StudentPerformance[] };
+        }
+        console.log(`❌ Failed response for exam ${examId}:`, res.status);
+        return null;
+      } catch (error) {
+        console.error(`❌ Failed to fetch student performance for exam ${examId}:`, error);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(performancePromises);
+    console.log('📋 All results:', results);
+    
+    const newPerformance: Record<string, StudentPerformance[]> = {};
+    
+    results.forEach(result => {
+      if (result) {
+        newPerformance[result.examId] = result.performance;
+        console.log(`💾 Stored performance for exam ${result.examId}:`, result.performance);
+      }
+    });
+
+    console.log('🔄 Setting studentPerformance state:', newPerformance);
+    setStudentPerformance(newPerformance);
+  }, []);
+
   const fetchExams = useCallback(async () => {
     setLoading(true);
     const accessToken = getAccessToken();
@@ -174,9 +304,8 @@ export default function Exams() {
       return;
     }
 
-    const batch = normalizeBatch(profile?.class_name || profile?.batch || "");
     const examsPath = isStudent
-      ? `/api/exams?status=published${batch ? `&batch=${encodeURIComponent(batch)}` : ""}`
+      ? `/api/exams?status=published` // Show ALL published exams
       : isAdmin
         ? "/api/exams"
         : `/api/exams?teacher_id=${encodeURIComponent(user?.id || "")}`;
@@ -186,12 +315,86 @@ export default function Exams() {
       isStudent ? api<Submission[]>("/api/exams/my-submissions", { method: "GET", accessToken }) : Promise.resolve({ status: 200, data: [] as Submission[] }),
     ]);
 
-    setExams(examsRes.status === 200 && examsRes.data ? examsRes.data : []);
+    const fetchedExams = examsRes.status === 200 && examsRes.data ? examsRes.data : [];
+    setExams(fetchedExams);
     setSubmissions(subsRes.status === 200 && subsRes.data ? subsRes.data : []);
+    
+    // Fetch statistics and student performance for teachers and admins
+    if (!isStudent && fetchedExams.length > 0) {
+      await Promise.all([
+        fetchExamStatistics(fetchedExams.map(exam => exam.id)),
+        fetchStudentPerformance(fetchedExams.map(exam => exam.id))
+      ]);
+    }
+    
     setLoading(false);
-  }, [isAdmin, isStudent, profile?.batch, profile?.class_name, user?.id]);
+  }, [isAdmin, isStudent, profile?.batch, profile?.class_name, user?.id, fetchExamStatistics, fetchStudentPerformance]);
 
   useEffect(() => { void fetchExams(); }, [fetchExams]);
+
+  useEffect(() => {
+    if (view === "student-reports" && selectedExamForReports) {
+      void fetchStudentPerformance([selectedExamForReports.id]);
+      void fetchExamStatistics([selectedExamForReports.id]);
+    }
+  }, [view, selectedExamForReports, fetchStudentPerformance, fetchExamStatistics]);
+
+  const handleViewExamQuestions = (examId: string) => {
+    navigate(`/exams/${examId}/questions`, { state: { from: 'exams' } });
+  };
+
+  const handleViewExamResults = (examId: string, submission: Submission | undefined) => {
+    if (!submission) return;
+    navigate(`/exams/${examId}/results`, { 
+      state: { 
+        submission,
+        from: 'exams' 
+      } 
+    });
+  };
+
+  const handleDeleteExam = async (examId: string, examTitle: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      examId,
+      examTitle
+    });
+  };
+
+  const handleViewStudentReports = (exam: Exam) => {
+    setSelectedExamForReports(exam);
+    setView("student-reports");
+  };
+
+  const confirmDeleteExam = async () => {
+    if (!confirmDialog.examId) return;
+
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      toast.error("Login required");
+      return;
+    }
+
+    setDeletingExamId(confirmDialog.examId);
+    try {
+      const res = await api(`/api/exams/${confirmDialog.examId}`, {
+        method: "DELETE",
+        accessToken,
+      });
+
+      if (res.status === 200) {
+        toast.success("Exam deleted successfully");
+        void fetchExams(); // Refresh the exam list
+      } else {
+        toast.error("Failed to delete exam");
+      }
+    } catch (error) {
+      toast.error("Failed to delete exam");
+    } finally {
+      setDeletingExamId(null);
+      setConfirmDialog({ isOpen: false, examId: null, examTitle: null });
+    }
+  };
 
   const handleCreateExam = async () => {
     if (!examForm.title.trim()) { toast.error("Title required"); return; }
@@ -203,12 +406,8 @@ export default function Exams() {
     const [hh, mm] = (examForm.due_time || "23:59").split(":");
     dueAt.setHours(Number(hh) || 23, Number(mm) || 59, 0, 0);
     
-    const res = await api<Exam>("/api/exams", {
-      method: "POST",
-      accessToken,
-      body: JSON.stringify({
+    const examData = {
         title: examForm.title,
-        batch: normalizeBatch(examForm.batch || profile?.class_name || profile?.batch || "") || null,
         teacher_id: user!.id,
         exam_type: examForm.exam_type,
         duration_minutes: examForm.duration_minutes,
@@ -216,15 +415,22 @@ export default function Exams() {
         status: "draft",
         due_date: dueAt.toISOString(),
         due_time: examForm.due_time,
-      }),
-    });
-    if (res.status !== 201 || !res.data) { toast.error("Failed to create exam"); return; }
+      };
+      
+      const res = await api<Exam>("/api/exams", {
+        method: "POST",
+        accessToken,
+        body: JSON.stringify(examData),
+      });
+    if (res.status !== 201 || !res.data) { 
+      toast.error("Failed to create exam"); 
+      return; 
+    }
     toast.success("Exam created! Now add questions.");
     setSelectedExam(res.data as Exam);
     setQuestionMode("manual");
     setExamForm({ 
       title: "", 
-      batch: "", 
       exam_type: "quiz", 
       duration_minutes: 10,
       due_date: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
@@ -369,6 +575,9 @@ export default function Exams() {
     if (res.status !== 200) { toast.error("Publish failed"); return; }
     toast.success("Exam published!");
     void fetchExams();
+    // Navigate back to exams list after successful publication
+    setView("list");
+    setSelectedExam(null);
   };
 
   const ensureCamera = useCallback(async () => {
@@ -387,6 +596,78 @@ export default function Exams() {
       return false;
     }
   }, []);
+
+  const initializeFaceDetection = useCallback(async () => {
+    try {
+      console.log('Initializing face detection...');
+      const model = faceDetection.SupportedModels.MediaPipeFaceDetector;
+      const detectorConfig: faceDetection.MediaPipeFaceDetectorTfjsModelConfig = {
+        runtime: 'tfjs',
+        maxFaces: 5,
+      };
+      console.log('Face detection config:', detectorConfig);
+      const detector = await faceDetection.createDetector(model, detectorConfig);
+      console.log('Face detector created successfully');
+      faceDetectorRef.current = detector;
+    } catch (error) {
+      console.error("Failed to initialize face detection:", error);
+    }
+  }, []);
+
+  const detectFaces = useCallback(async () => {
+    if (!videoRef.current || !faceDetectorRef.current || view !== "attempt") return;
+    
+    try {
+      const faces = await faceDetectorRef.current.estimateFaces(videoRef.current);
+      const currentPersonCount = faces.length;
+      console.log('Face detection result:', { 
+        facesDetected: currentPersonCount, 
+        faceDetails: faces.map((f: any) => ({ 
+          confidence: f.score?.toFixed(2), 
+          box: f.box 
+        })),
+        videoReady: !!videoRef.current,
+        detectorReady: !!faceDetectorRef.current
+      });
+      setPersonCount(currentPersonCount);
+      
+      // Check if multiple people detected
+      if (currentPersonCount > 1 && lastPersonCountRef.current <= 1) {
+        // Multiple people detected - show warning
+        setPersonDetectionWarning(true);
+        setPersonWarningCount(prev => {
+          const newCount = prev + 1;
+          if (newCount >= 2) {
+            // Auto-submit on second person detection warning
+            toast.error("Multiple people detected twice! Exam auto-submitted.");
+            void submitExam("tab_switch");
+          } else {
+            // First warning - show toast
+            toast.warning(`Multiple people detected in camera! First warning (1/2)`);
+          }
+          return newCount;
+        });
+      } else if (currentPersonCount === 1 && lastPersonCountRef.current > 1) {
+        // Back to single person
+        setPersonDetectionWarning(false);
+      }
+      
+      lastPersonCountRef.current = currentPersonCount;
+    } catch (error) {
+      console.error("Face detection error:", error);
+    }
+  }, [view, personWarningCount]);
+
+  const startFaceDetection = useCallback(() => {
+    console.log('Starting face detection...');
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+    }
+    
+    // Start detection interval
+    detectionIntervalRef.current = setInterval(detectFaces, 2000); // Check every 2 seconds
+    console.log('Face detection interval started');
+  }, [detectFaces]);
 
   const startExam = async (exam: Exam) => {
     const existing = submissions.find((s) => s.exam_id === exam.id);
@@ -422,6 +703,11 @@ export default function Exams() {
     setTimeLeft(secs);
     localStorage.setItem(ACTIVE_EXAM_KEY, exam.id);
     localStorage.setItem(ACTIVE_ANSWERS_KEY, JSON.stringify({}));
+    
+    // Initialize and start face detection
+    await initializeFaceDetection();
+    startFaceDetection();
+    
     setView("attempt");
   };
 
@@ -482,6 +768,13 @@ export default function Exams() {
     void videoRef.current.play().catch(() => undefined);
     setCameraReady(true);
   }, [view]);
+
+  useEffect(() => {
+    // Stop face detection when leaving attempt view
+    if (view !== "attempt") {
+      stopFaceDetection();
+    }
+  }, [view, stopFaceDetection]);
 
   useEffect(() => {
     if (view !== "attempt" || !selectedExam) return;
@@ -568,6 +861,26 @@ export default function Exams() {
   const formatTimer = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
   const attemptedByExam = useMemo(() => new Map(submissions.map((s) => [s.exam_id, s])), [submissions]);
 
+  const getExamStatus = (exam: Exam, submission?: Submission) => {
+    if (exam.status !== "published") {
+      return { text: exam.status, color: "bg-amber-500/10 text-amber-600" };
+    }
+
+    if (!submission) {
+      return { text: "available", color: "bg-blue-500/10 text-blue-600" };
+    }
+
+    if (submission.status === "submitted" || submission.status === "auto_submitted") {
+      return { text: "complete", color: "bg-emerald-500/10 text-emerald-600" };
+    }
+
+    if (submission.status === "in_progress") {
+      return { text: "in process", color: "bg-amber-500/10 text-amber-600" };
+    }
+
+    return { text: exam.status, color: "bg-emerald-500/10 text-emerald-600" };
+  };
+
   const onAnswerSelect = (questionId: string, option: string) => {
     const next = { ...answers, [questionId]: option };
     setAnswers(next);
@@ -578,42 +891,44 @@ export default function Exams() {
     return (
       <div className="space-y-6 max-w-4xl mx-auto">
         {alertModal && (
-          <div className="fixed inset-0 z-[90] bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 12 }}
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-              className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden ${
-                alertModal.type === "error"
-                  ? "border-destructive/45 bg-gradient-to-br from-destructive/20 via-card to-card"
-                  : "border-amber-500/45 bg-gradient-to-br from-amber-500/20 via-card to-card"
-              }`}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="w-full max-w-md rounded-2xl border border-border/20 bg-card shadow-2xl overflow-hidden"
             >
-              <div className="p-5">
-                <div className="flex items-start gap-3">
+              <div className="p-6">
+                <div className="flex items-start gap-4">
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      alertModal.type === "error" ? "bg-destructive/20 text-destructive" : "bg-amber-500/20 text-amber-600"
+                    className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+                      alertModal.type === "error" 
+                        ? "bg-destructive/10 text-destructive" 
+                        : "bg-amber-500/10 text-amber-600"
                     }`}
                   >
-                    <AlertTriangle className="w-5 h-5" />
+                    <AlertTriangle className="w-6 h-6" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className={`text-lg font-extrabold tracking-tight ${alertModal.type === "error" ? "text-destructive" : "text-amber-700"}`}>
+                  <div className="flex-1 space-y-2">
+                    <h3 className={`text-lg font-semibold tracking-tight ${
+                      alertModal.type === "error" ? "text-destructive" : "text-amber-700"
+                    }`}>
                       {alertModal.type === "error" ? "Critical Warning" : "Tab Switch Warning"}
                     </h3>
-                    <p className="text-sm text-foreground/90 mt-1 leading-relaxed">{alertModal.text}</p>
+                    <p className="text-sm text-foreground/80 leading-relaxed">{alertModal.text}</p>
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-xl border border-border/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                  Exam integrity rule: 1st tab switch warning, 2nd switch auto-submit.
+                <div className="mt-6 rounded-xl bg-muted/50 border border-border/30 px-4 py-3">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    Exam integrity rule: 1st tab switch warning, 2nd switch auto-submit.
+                  </p>
                 </div>
 
-                <div className="mt-5 flex items-center justify-end gap-2">
+                <div className="mt-6 flex items-center justify-end">
                   <button
                     onClick={() => setAlertModal(null)}
-                    className="px-3.5 py-2 rounded-lg bg-foreground text-background text-sm font-semibold hover:opacity-90"
+                    className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
                   >
                     Continue Exam
                   </button>
@@ -624,15 +939,19 @@ export default function Exams() {
         )}
         {attemptAlert && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
+            transition={{ duration: 0.2 }}
+            className={`rounded-xl border px-4 py-3 text-sm font-medium ${
               attemptAlert.type === "error"
-                ? "bg-destructive/10 border-destructive/40 text-destructive"
-                : "bg-amber-500/10 border-amber-500/40 text-amber-700"
+                ? "bg-destructive/5 border-destructive/20 text-destructive"
+                : "bg-amber-500/5 border-amber-500/20 text-amber-700"
             }`}
           >
-            {attemptAlert.text}
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span>{attemptAlert.text}</span>
+            </div>
           </motion.div>
         )}
         <div className="grid md:grid-cols-[1fr_280px] gap-4">
@@ -656,8 +975,33 @@ export default function Exams() {
             </div>
             <div className="mt-1 text-xs text-amber-600 flex items-center gap-1">
               <AlertTriangle className="w-3.5 h-3.5" />
-              Warning count: {warningCount}/2
+              Tab warnings: {warningCount}/2
             </div>
+            <div className={`mt-1 text-xs flex items-center gap-1 ${
+              personDetectionWarning 
+                ? "text-destructive" 
+                : personCount > 0 
+                  ? "text-emerald-600" 
+                  : "text-muted-foreground"
+            }`}>
+              <Users className="w-3.5 h-3.5" />
+              {personCount === 0 
+                ? "No person detected" 
+                : personCount === 1 
+                  ? "1 person detected" 
+                  : `${personCount} people detected!`
+              }
+            </div>
+            {personWarningCount > 0 && (
+              <div className={`mt-1 text-xs flex items-center gap-1 ${
+                personWarningCount >= 2 
+                  ? "text-destructive" 
+                  : "text-amber-600"
+              }`}>
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Person warnings: {personWarningCount}/2
+              </div>
+            )}
           </div>
         </div>
         {questions.map((q, i) => (
@@ -895,16 +1239,6 @@ export default function Exams() {
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Batch</label>
-              <select value={examForm.batch} onChange={e => setExamForm({ ...examForm, batch: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground">
-                <option value="">Select Batch</option>
-                {/* This will be populated with actual batches from backend */}
-                <option value="2021">2021</option>
-                <option value="2022">2022</option>
-                <option value="2023">2023</option>
-              </select>
-            </div>
-            <div>
               <label className="text-xs text-muted-foreground mb-1 block">Duration (minutes)</label>
               <input type="number" value={examForm.duration_minutes} onChange={e => setExamForm({ ...examForm, duration_minutes: parseInt(e.target.value) || 10 })} className="w-full px-3 py-2 rounded-xl border border-border/20 bg-background text-sm text-foreground" />
             </div>
@@ -946,7 +1280,255 @@ export default function Exams() {
           <div className="text-xs text-muted-foreground rounded-xl border border-border/20 p-3 bg-muted/20">
             This exam template is locked to <span className="font-semibold text-foreground">5 MCQs</span>, each with <span className="font-semibold text-foreground">4 options</span> and one correct answer.
           </div>
-          <button onClick={handleCreateExam} className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90">Create & Add 5 Questions</button>
+          <div className="flex gap-3">
+            <button onClick={handleCreateExam} className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90">Create & Add 5 Questions</button>
+            {(isTeacher || isAdmin) && (
+              <button onClick={() => setView("student-reports")} className="px-6 py-2.5 rounded-xl bg-emerald-500 text-white font-medium text-sm hover:opacity-90 flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Student Reports
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== STUDENT REPORTS VIEW =====
+  if (view === "student-reports") {
+    if (!selectedExamForReports) {
+      return (
+        <div className="space-y-6 max-w-6xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Student Exam Reports</h1>
+              <p className="text-sm text-muted-foreground">View all student exam performance and statistics</p>
+            </div>
+            <button
+              onClick={() => setView("list")}
+              className="px-4 py-2 rounded-xl bg-muted/30 text-muted-foreground text-sm hover:text-foreground"
+            >
+              Back to Exams
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {exams.filter(exam => exam.status === "published").map((exam, index) => {
+              const stats = examStatistics[exam.id];
+              return (
+                <motion.div
+                  key={exam.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="bg-card border border-border/20 rounded-2xl p-6 cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => setSelectedExamForReports(exam)}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-foreground text-lg">{exam.title}</h3>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-medium uppercase bg-emerald-500/10 text-emerald-600">
+                        {exam.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mb-4 text-xs text-muted-foreground">
+                    <span>📚 {exam.exam_type}</span>
+                    <span>⏱ {exam.duration_minutes} min</span>
+                    <span>📊 5 marks</span>
+                    <span>❓ {exam.question_count} Qs</span>
+                  </div>
+
+                  {stats ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-emerald-500/5 rounded-lg p-3 text-center">
+                          <div className="text-lg font-semibold text-emerald-600">{stats.submittedStudents}</div>
+                          <div className="text-xs text-muted-foreground">Submitted</div>
+                        </div>
+                        <div className="bg-blue-500/5 rounded-lg p-3 text-center">
+                          <div className="text-lg font-semibold text-blue-600">{stats.averageScore}</div>
+                          <div className="text-xs text-muted-foreground">Avg Score</div>
+                        </div>
+                        <div className="bg-amber-500/5 rounded-lg p-3 text-center">
+                          <div className="text-lg font-semibold text-amber-600">{stats.highestScore}</div>
+                          <div className="text-xs text-muted-foreground">Highest</div>
+                        </div>
+                        <div className="bg-violet-500/5 rounded-lg p-3 text-center">
+                          <div className="text-lg font-semibold text-violet-600">{stats.completionRate}%</div>
+                          <div className="text-xs text-muted-foreground">Completion</div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-foreground">Grade Distribution</div>
+                        <div className="grid grid-cols-4 gap-2 text-xs">
+                          <div className="text-center">
+                            <div className="text-emerald-600 font-medium">{stats.gradeDistribution.excellent}</div>
+                            <div className="text-muted-foreground">Excellent</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-blue-600 font-medium">{stats.gradeDistribution.good}</div>
+                            <div className="text-muted-foreground">Good</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-amber-600 font-medium">{stats.gradeDistribution.average}</div>
+                            <div className="text-muted-foreground">Average</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-red-600 font-medium">{stats.gradeDistribution.poor}</div>
+                            <div className="text-muted-foreground">Poor</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <div className="text-sm">No student data available</div>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // Detailed view for selected exam
+    const stats = examStatistics[selectedExamForReports.id];
+    const performance = studentPerformance[selectedExamForReports.id] || [];
+    
+    console.log('📊 Student Reports Debug:', {
+      selectedExamId: selectedExamForReports.id,
+      stats: stats,
+      performance: performance,
+      allStudentPerformance: studentPerformance,
+      performanceLength: performance.length
+    });
+
+    return (
+      <div className="space-y-6 max-w-6xl mx-auto">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Student Reports - {selectedExamForReports.title}</h1>
+            <p className="text-sm text-muted-foreground">Detailed student performance for this exam</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedExamForReports(null)}
+              className="px-4 py-2 rounded-xl bg-muted/30 text-muted-foreground text-sm hover:text-foreground"
+            >
+              Back to All Exams
+            </button>
+            <button
+              onClick={() => {
+                fetchStudentPerformance([selectedExamForReports.id]);
+                fetchExamStatistics([selectedExamForReports.id]);
+              }}
+              className="px-4 py-2 rounded-xl bg-amber-500/10 text-amber-600 text-sm hover:bg-amber-500/20 flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh Data
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm hover:opacity-90"
+            >
+              Back to Exam List
+            </button>
+          </div>
+        </div>
+
+        {stats && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-emerald-500/5 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-emerald-600">{stats.submittedStudents}</div>
+              <div className="text-sm text-muted-foreground">Students Submitted</div>
+            </div>
+            <div className="bg-blue-500/5 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">{stats.averageScore}</div>
+              <div className="text-sm text-muted-foreground">Average Score</div>
+            </div>
+            <div className="bg-amber-500/5 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-amber-600">{stats.highestScore}</div>
+              <div className="text-sm text-muted-foreground">Highest Score</div>
+            </div>
+            <div className="bg-violet-500/5 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-violet-600">{stats.completionRate}%</div>
+              <div className="text-sm text-muted-foreground">Completion Rate</div>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-card border border-border/20 rounded-2xl p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Student Performance Details</h2>
+          {performance.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border/20">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Student Name</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Email</th>
+                    <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">Score</th>
+                    <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">Percentage</th>
+                    <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Submitted At</th>
+                    <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">Warnings</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {performance.map((student, index) => (
+                    <tr key={student.id} className="border-b border-border/10 hover:bg-muted/20">
+                      <td className="py-3 px-4 text-sm font-medium">{student.student_name}</td>
+                      <td className="py-3 px-4 text-sm text-muted-foreground">{student.student_email}</td>
+                      <td className="py-3 px-4 text-sm text-center font-medium">{student.score}</td>
+                      <td className="py-3 px-4 text-sm text-center">
+                        <span className={`font-medium ${
+                          student.percentage >= 80 ? 'text-emerald-600' : 
+                          student.percentage >= 60 ? 'text-blue-600' : 
+                          student.percentage >= 40 ? 'text-amber-600' : 'text-red-600'
+                        }`}>
+                          {student.percentage}%
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-center">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          student.status === 'submitted' ? 'bg-emerald-500/10 text-emerald-600' :
+                          student.status === 'auto_submitted' ? 'bg-amber-500/10 text-amber-600' :
+                          'bg-gray-500/10 text-gray-600'
+                        }`}>
+                          {student.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-muted-foreground">
+                        {student.submitted_at ? format(new Date(student.submitted_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-center">
+                        {student.warning_count > 0 ? (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            student.warning_count >= 2 ? 'bg-red-500/10 text-red-600' : 'bg-amber-500/10 text-amber-600'
+                          }`}>
+                            {student.warning_count}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <div className="text-lg font-medium mb-2">No Student Data Available</div>
+              <div className="text-sm">No students have attempted this exam yet.</div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -954,138 +1536,243 @@ export default function Exams() {
 
   // ===== LIST VIEW =====
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">📝 Exams & Quizzes</h1>
-          <p className="text-sm text-muted-foreground">{isStudent ? "Attempt exams and view your scores" : "Create and manage exams"}</p>
+    <>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">📝 Exams & Quizzes</h1>
+            <p className="text-sm text-muted-foreground">{isStudent ? "Attempt exams and view your scores" : "Create and manage exams"}</p>
+          </div>
+          {(isTeacher || isAdmin) && (
+            <button onClick={() => setView("create")} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition">
+              <Plus className="w-4 h-4" /> Create Exam
+            </button>
+          )}
         </div>
-        {(isTeacher || isAdmin) && (
-          <button onClick={() => setView("create")} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition">
-            <Plus className="w-4 h-4" /> Create Exam
-          </button>
+
+        {loading ? (
+          <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
+        ) : exams.length === 0 ? (
+          <div className="text-center py-16">
+            <Award className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-muted-foreground">No exams yet</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {exams.map((exam, i) => {
+              const sub = submissions.find(s => s.exam_id === exam.id);
+              const attempted = !!sub;
+              return (
+                <motion.div
+                  key={exam.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className={`bg-card border border-border/20 rounded-2xl p-5 hover:shadow-lg transition-all ${(isTeacher || isAdmin) || (isStudent && attempted) ? 'cursor-pointer' : ''}`}
+                  onClick={() => {
+                    if (isTeacher || isAdmin) {
+                      handleViewExamQuestions(exam.id);
+                    } else if (isStudent && attempted) {
+                      handleViewExamResults(exam.id, sub);
+                    }
+                  }}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold text-foreground">{exam.title}</h3>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${getExamStatus(exam, sub).color}`}>
+                      {getExamStatus(exam, sub).text}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mb-4 text-xs text-muted-foreground">
+                    <span>📚 {exam.exam_type}</span>
+                    <span>⏱ {exam.duration_minutes} min</span>
+                    <span>📊 5 marks</span>
+                    <span>❓ {exam.question_count} Qs</span>
+                  </div>
+
+                  {/* Deadline and Time Remaining */}
+                  {exam.due_date ? (
+                    <div className="mb-4 space-y-2">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="w-3 h-3" />
+                        <span>Deadline: {format(new Date(exam.due_date), "PPp")}</span>
+                      </div>
+                      {(() => {
+                        const now = new Date();
+                        const due = new Date(exam.due_date);
+                        const diff = due.getTime() - now.getTime();
+                        
+                        if (diff <= 0) {
+                          return (
+                            <div className="flex items-center gap-1.5 text-xs text-violet-600 font-medium">
+                              <Clock className="w-3 h-3" />
+                              <span>Practice Mode Available</span>
+                            </div>
+                          );
+                        }
+                        
+                        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                        
+                        let timeText = "";
+                        if (days > 0) {
+                          timeText = `${days}d ${hours}h ${minutes}m remaining`;
+                        } else if (hours > 0) {
+                          timeText = `${hours}h ${minutes}m remaining`;
+                        } else {
+                          timeText = `${minutes}m remaining`;
+                        }
+                        
+                        const isUrgent = days === 0 && hours < 2;
+                        return (
+                          <div className={`flex items-center gap-1.5 text-xs font-medium ${isUrgent ? "text-warning" : "text-primary"}`}>
+                            <Clock className="w-3 h-3" />
+                            <span>{timeText}</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="mb-4">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="w-3 h-3" />
+                        <span>No deadline set</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {isStudent && exam.status === "published" && (
+                    attempted ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                          <span className="text-emerald-600 font-medium">Score: {sub?.score} ({sub?.percentage}%)</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-primary">
+                          <Eye className="w-3 h-3" />
+                          <span>Click to view detailed results</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={(e) => { e.stopPropagation(); startExam(exam); }} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
+                        <Play className="w-4 h-4" /> Start Exam
+                      </button>
+                    )
+                  )}
+
+                  {(isTeacher || isAdmin) && (
+                    <div className="mb-3 p-3 rounded-xl bg-muted/20 border border-border/20">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-xs font-semibold text-foreground">Student Performance</div>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleViewStudentReports(exam); }}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-primary/10 text-primary text-xs hover:bg-primary/20 transition-colors"
+                        >
+                          <Eye className="w-3 h-3" />
+                          View Reports
+                        </button>
+                      </div>
+                      {studentPerformance[exam.id] && studentPerformance[exam.id].length > 0 ? (
+                        <div className="space-y-2">
+                          {examStatistics[exam.id] && (
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="flex items-center gap-1">
+                                <Users className="w-3 h-3 text-primary" />
+                                <span>{examStatistics[exam.id].submittedStudents}/{examStatistics[exam.id].totalStudents} submitted</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Award className="w-3 h-3 text-emerald-500" />
+                                <span>Avg: {examStatistics[exam.id].averageScore}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                <span>High: {examStatistics[exam.id].highestScore}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-amber-500" />
+                                <span>{examStatistics[exam.id].completionRate}% completion</span>
+                              </div>
+                            </div>
+                          )}
+                          <div className="space-y-1 max-h-24 overflow-y-auto">
+                            {studentPerformance[exam.id].slice(0, 3).map((student, idx) => (
+                              <div key={student.id} className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground truncate max-w-[120px]">{student.student_name}</span>
+                                <span className={`font-medium ${
+                                  student.percentage >= 80 ? 'text-emerald-600' : 
+                                  student.percentage >= 60 ? 'text-blue-600' : 
+                                  student.percentage >= 40 ? 'text-amber-600' : 'text-red-600'
+                                }`}>
+                                  {student.score} ({student.percentage}%)
+                                </span>
+                              </div>
+                            ))}
+                            {studentPerformance[exam.id].length > 3 && (
+                              <div className="text-xs text-muted-foreground text-center">
+                                +{studentPerformance[exam.id].length - 3} more students
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">
+                          {exam.status === "draft" ? "Publish exam to see student reports" : "No students have attempted this exam yet"}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(isTeacher || isAdmin) && (
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => { setSelectedExam(exam); setQuestionMode("manual"); setAiDrafts([]); setAiTopic(""); fetchQuestions(exam.id); setView("questions"); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-muted-foreground text-xs hover:text-foreground">
+                        <Eye className="w-3.5 h-3.5" /> Questions
+                      </button>
+                      {exam.status === "draft" && (
+                        <button onClick={() => handlePublish(exam.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 text-xs hover:bg-emerald-500/20 font-medium">
+                          Publish
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => handleDeleteExam(exam.id, exam.title)} 
+                        disabled={deletingExamId === exam.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-600 text-xs hover:bg-red-500/20 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {deletingExamId === exam.id ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
         )}
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
-      ) : exams.length === 0 ? (
-        <div className="text-center py-16">
-          <Award className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-muted-foreground">No exams yet</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {exams.map((exam, i) => {
-            const sub = submissions.find(s => s.exam_id === exam.id);
-            const attempted = !!sub;
-            return (
-              <motion.div
-                key={exam.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="bg-card border border-border/20 rounded-2xl p-5 hover:shadow-lg transition-all"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-foreground">{exam.title}</h3>
-                  </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${exam.status === "published" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"}`}>
-                    {exam.status}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap gap-2 mb-4 text-xs text-muted-foreground">
-                  <span>📚 {exam.exam_type}</span>
-                  <span>⏱ {exam.duration_minutes} min</span>
-                  <span>📊 5 marks</span>
-                  <span>❓ {exam.question_count} Qs</span>
-                  {exam.batch && <span>🏷 Batch {exam.batch}</span>}
-                </div>
-
-                {/* Deadline and Time Remaining */}
-                {exam.due_date ? (
-                  <div className="mb-4 space-y-2">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Calendar className="w-3 h-3" />
-                      <span>Deadline: {format(new Date(exam.due_date), "PPp")}</span>
-                    </div>
-                    {(() => {
-                      const now = new Date();
-                      const due = new Date(exam.due_date);
-                      const diff = due.getTime() - now.getTime();
-                      
-                      if (diff <= 0) {
-                        return (
-                          <div className="flex items-center gap-1.5 text-xs text-violet-600 font-medium">
-                            <Clock className="w-3 h-3" />
-                            <span>Practice Mode Available</span>
-                          </div>
-                        );
-                      }
-                      
-                      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                      
-                      let timeText = "";
-                      if (days > 0) {
-                        timeText = `${days}d ${hours}h ${minutes}m remaining`;
-                      } else if (hours > 0) {
-                        timeText = `${hours}h ${minutes}m remaining`;
-                      } else {
-                        timeText = `${minutes}m remaining`;
-                      }
-                      
-                      const isUrgent = days === 0 && hours < 2;
-                      return (
-                        <div className={`flex items-center gap-1.5 text-xs font-medium ${isUrgent ? "text-warning" : "text-primary"}`}>
-                          <Clock className="w-3 h-3" />
-                          <span>{timeText}</span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                ) : (
-                  <div className="mb-4">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Calendar className="w-3 h-3" />
-                      <span>No deadline set</span>
-                    </div>
-                  </div>
-                )}
-
-                {isStudent && exam.status === "published" && (
-                  attempted ? (
-                    <div className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span className="text-emerald-600 font-medium">Score: {sub?.score} ({sub?.percentage}%)</span>
-                    </div>
-                  ) : (
-                    <button onClick={() => startExam(exam)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">
-                      <Play className="w-4 h-4" /> Start Exam
-                    </button>
-                  )
-                )}
-
-                {(isTeacher || isAdmin) && (
-                  <div className="flex gap-2">
-                    <button onClick={() => { setSelectedExam(exam); setQuestionMode("manual"); setAiDrafts([]); setAiTopic(""); fetchQuestions(exam.id); setView("questions"); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 text-muted-foreground text-xs hover:text-foreground">
-                      <Eye className="w-3.5 h-3.5" /> Questions
-                    </button>
-                    {exam.status === "draft" && (
-                      <button onClick={() => handlePublish(exam.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 text-xs hover:bg-emerald-500/20 font-medium">
-                        Publish
-                      </button>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+      {/* Custom Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, examId: null, examTitle: null })}
+        onConfirm={confirmDeleteExam}
+        title="Delete Exam"
+        message={`Are you sure you want to delete "${confirmDialog.examTitle}"? This will permanently remove the exam and all associated questions and submissions. This action cannot be undone.`}
+        confirmText="Delete Exam"
+        cancelText="Cancel"
+        type="danger"
+      />
+    </>
   );
 }
