@@ -449,22 +449,16 @@ function App() {
             >
               {/* Video Container with Glassmorphism */}
               <GlassPanel className="relative overflow-hidden rounded-[3rem] p-1 bg-gradient-to-br from-blue-500/20 to-cyan-400/20">
-                <div className="relative rounded-[2.5rem] overflow-hidden bg-black">
+                <div className="relative rounded-[2.5rem] overflow-hidden bg-black h-[600px]">
                   {/* Video Element */}
-                  <video
-                    className="w-full h-auto max-h-[600px] object-cover rounded-[2.5rem]"
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    controls
-                    poster="/video-poster.jpg"
+                  <iframe
+                    className="w-full h-full aspect-video rounded-[2.5rem]"
+                    src="https://drive.google.com/file/d/1Oua9_btlaAFvvguM5KhU3lH9l0tX_Vao/preview"
                     title="LearnX Platform Demo - AI Learning Management System in Action"
                     aria-label="LearnX Platform Demo Video"
-                  >
-                    <source src="/learnx.MP4" type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
+                    allow="autoplay; fullscreen"
+                    allowFullScreen
+                  />
 
                   {/* Overlay Effects */}
                   <div className="absolute inset-0 pointer-events-none">
