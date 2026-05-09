@@ -243,9 +243,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Logo */}
         <div className="h-[65px] flex items-center px-4 border-b border-border/10">
           <Link to="/" className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-[14px] flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-sky-500 via-violet-500 to-pink-500 shadow-lg shadow-violet-500/20">
-              <GraduationCap className="w-5 h-5 text-white" />
-            </div>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+              <GraduationCap className="h-5 w-5" />
+            </span>
             <AnimatePresence>
               {!collapsed && (
                 <motion.span
@@ -356,9 +356,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               <div className="h-14 flex items-center justify-between px-4 border-b border-border/10">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-sky-500 via-violet-500 to-pink-500">
-                    <GraduationCap className="w-5 h-5 text-white" />
-                  </div>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+                    <GraduationCap className="h-5 w-5" />
+                  </span>
                   <span className="font-extrabold text-foreground text-sm">
                     Learn<span className="bg-gradient-to-r from-sky-500 via-violet-500 to-pink-500 bg-clip-text text-transparent">X</span>
                   </span>
