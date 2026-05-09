@@ -11,6 +11,7 @@ export default function Profile() {
 
   const [fullName, setFullName] = useState("");
   const [className, setClassName] = useState("");
+  const [email, setEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -19,7 +20,12 @@ export default function Profile() {
     if (!profile) return;
     setFullName(profile.full_name || "");
     setClassName(profile.class_name || "");
-    setAvatarUrl(profile.avatar_url);
+    setEmail(profile.email || "");
+    // Prepend API base URL to avatar URL if it's a relative path
+    const fullAvatarUrl = profile.avatar_url ? 
+      (profile.avatar_url.startsWith('http') ? profile.avatar_url : `${API_BASE}${profile.avatar_url}`) 
+      : null;
+    setAvatarUrl(fullAvatarUrl);
   }, [profile]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,7 +71,10 @@ export default function Profile() {
 
       // Update avatar URL immediately
       const newAvatarUrl = result.data?.url;
-      setAvatarUrl(newAvatarUrl);
+      const fullAvatarUrl = newAvatarUrl ? 
+        (newAvatarUrl.startsWith('http') ? newAvatarUrl : `${API_BASE}${newAvatarUrl}`) 
+        : null;
+      setAvatarUrl(fullAvatarUrl);
       
       toast.success("Profile picture updated!");
       await refreshProfile?.();
@@ -94,6 +103,7 @@ export default function Profile() {
       body: JSON.stringify({
         full_name: fullName.trim(),
         class_name: className.trim() || null,
+        email: email.trim() || null,
       }),
     });
     if (out.status !== 200 || !out.data) {
@@ -162,6 +172,19 @@ export default function Profile() {
               {user.email}
             </p>
           )}
+          {/* Display codes */}
+          {profile?.student_id && (
+            <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
+              <GraduationCap className="w-3 h-3" />
+              Student Code: {profile.student_id}
+            </p>
+          )}
+          {profile?.teacher_code && (
+            <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
+              <GraduationCap className="w-3 h-3" />
+              Teacher Code: {profile.teacher_code}
+            </p>
+          )}
         </div>
       </div>
 
@@ -171,6 +194,34 @@ export default function Profile() {
           <label className={labelClass}><User className="w-3 h-3 inline mr-1" />Full Name</label>
           <input className={inputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your full name" maxLength={100} />
         </div>
+        {/* Email field - only editable by students */}
+        {roles.includes("student") ? (
+          <div>
+            <label className={labelClass}><Mail className="w-3 h-3 inline mr-1" />Email Address</label>
+            <input 
+              className={inputClass} 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              placeholder="your.email@example.com" 
+              type="email"
+              maxLength={100}
+            />
+            <p className="text-xs text-muted-foreground mt-1">You can update your email address</p>
+          </div>
+        ) : (
+          user?.email && (
+            <div>
+              <label className={labelClass}><Mail className="w-3 h-3 inline mr-1" />Email Address</label>
+              <input 
+                className={inputClass} 
+                value={user.email} 
+                readOnly
+                disabled
+              />
+              <p className="text-xs text-muted-foreground mt-1">Email cannot be changed by {roles[0] || "user"}</p>
+            </div>
+          )
+        )}
         <div>
           <label className={labelClass}><BookOpen className="w-3 h-3 inline mr-1" />Class Name</label>
           <input 

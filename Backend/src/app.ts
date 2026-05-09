@@ -66,7 +66,7 @@ const corsOrigin: cors.CorsOptions['origin'] = (origin, callback) => {
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: env.nodeEnv === 'production' ? 300 : 2000,
+  max: env.nodeEnv === 'production' ? 1000 : 5000,
   standardHeaders: true,
   legacyHeaders: false,
 });

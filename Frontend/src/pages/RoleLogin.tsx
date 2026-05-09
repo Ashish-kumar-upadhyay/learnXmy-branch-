@@ -1005,7 +1005,10 @@ export default function RoleLogin() {
                         // transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                         className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
                       />
-                      Loading...
+                      <span className="flex items-center gap-2">
+                        <span className="animate-pulse">⏳</span>
+                        Please wait...
+                      </span>
                     </>
                   ) : isLogin ? "Sign In" : "Create Account"}
                 </span>
@@ -1136,7 +1139,10 @@ export default function RoleLogin() {
                           // transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                           className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full"
                         />
-                        Logging...
+                        <span className="flex items-center gap-1">
+                          <span className="animate-pulse">⏳</span>
+                          Please wait...
+                        </span>
                       </>
                     ) : (
                       <>

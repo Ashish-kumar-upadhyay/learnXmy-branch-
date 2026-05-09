@@ -24,12 +24,18 @@ export async function uploadFile(req: AuthRequest, res: Response) {
   
   // Handle avatar uploads - store relative URL in user profile
   if (kind === 'avatar') {
-    const avatarUrl = `/api/files/${meta._id}`;
+    const avatarUrl = `/api/files/avatar/${meta._id}`;
     try {
+      // Update user's avatar_url in the database
       await User.findByIdAndUpdate(req.authUser.id, { avatar_url: avatarUrl } as Record<string, unknown>);
+      
+      // Log successful avatar update for debugging
+      console.log(`Avatar updated for user ${req.authUser.id}: ${avatarUrl}`);
+      
       return ok(res, { id: String(meta._id), url: avatarUrl });
     } catch (error) {
       // If database update fails, clean up the uploaded file
+      console.error('Failed to update avatar URL:', error);
       await fileService.deleteMeta(String(meta._id), req.authUser.id).catch(() => {});
       throw error;
     }
@@ -87,6 +93,11 @@ export async function uploadSelfie(req: AuthRequest, res: Response) {
 }
 
 export async function getSelfie(req: AuthRequest, res: Response) {
+  return getFile(req, res);
+}
+
+export async function getPublicAvatar(req: any, res: Response) {
+  // Public endpoint for avatar images - no authentication required
   return getFile(req, res);
 }
 

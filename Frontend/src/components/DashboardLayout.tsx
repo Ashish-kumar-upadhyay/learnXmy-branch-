@@ -6,7 +6,7 @@ import {
   Bell, GraduationCap, ChevronLeft, ChevronRight, Zap, Bot, LogOut, School, ClipboardCheck, UserCircle, CalendarDays,   Menu, X, Settings, CalendarOff, Clock, PenTool, IndianRupee, LifeBuoy, Volume2, VolumeX, Search, Users
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { api, getAccessToken } from "@/lib/backendApi";
+import { api, getAccessToken, API_BASE } from "@/lib/backendApi";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Loader2 } from "lucide-react";
 
@@ -555,7 +555,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 >
                   {profile?.avatar_url && !imageLoadError ? (
                     <img 
-                      src={`${profile.avatar_url}?t=${avatarCacheBuster}`} 
+                      src={`${profile.avatar_url.startsWith('http') ? profile.avatar_url : `${API_BASE}${profile.avatar_url}`}?t=${avatarCacheBuster}`} 
                       alt="Avatar" 
                       className="w-9 h-9 rounded-xl object-cover shadow-md transition-opacity duration-200"
                       onError={(e) => {
@@ -691,7 +691,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               >
                 {profile?.avatar_url && !imageLoadError ? (
                   <img 
-                    src={`${profile.avatar_url}?t=${avatarCacheBuster}`} 
+                    src={`${profile.avatar_url.startsWith('http') ? profile.avatar_url : `${API_BASE}${profile.avatar_url}`}?t=${avatarCacheBuster}`} 
                     alt="Avatar" 
                     className="w-full h-full rounded-lg object-cover transition-opacity duration-200"
                     onError={(e) => {

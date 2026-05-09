@@ -31,6 +31,7 @@ export const welcomeLoginSchema = Joi.object({
 
 export const updateProfileSchema = Joi.object({
   full_name: Joi.string().min(1),
+  email: Joi.string().email().allow('', null),
   avatar_url: Joi.alternatives()
     .try(
       Joi.string().uri(),

@@ -201,6 +201,7 @@ export async function updateProfile(
     class_name: string | null;
     avatar_url: string | null;
     username: string | null;
+    email: string | null;
   }>
 ) {
   // Build $set only for fields provided; otherwise we may accidentally null out values.
@@ -208,6 +209,7 @@ export async function updateProfile(
   if (body.full_name !== undefined) $set.name = body.full_name;
   if (body.class_name !== undefined) $set.assignedClass = body.class_name ?? null;
   if (body.avatar_url !== undefined) $set.avatar_url = body.avatar_url;
+  if (body.email !== undefined) $set.email = body.email ? body.email.toLowerCase() : null;
 
   const user = await User.findByIdAndUpdate(userId, { $set }, { new: true }).lean();
 
