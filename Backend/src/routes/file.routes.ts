@@ -9,7 +9,7 @@ r.post('/upload', authMiddleware, upload.single('file'), ctrl.uploadFile);
 r.get('/profile/:userId', authMiddleware, ctrl.profileFiles);
 r.post('/selfie', authMiddleware, upload.single('file'), ctrl.uploadSelfie);
 r.get('/selfie/:id', authMiddleware, ctrl.getSelfie);
-r.get('/avatar/:id', ctrl.getPublicAvatar);
+r.get('/profile/:id', ctrl.getPublicProfileImage);
 r.get('/:id', ctrl.getFile);
 r.delete('/:id', authMiddleware, ctrl.deleteFile);
 

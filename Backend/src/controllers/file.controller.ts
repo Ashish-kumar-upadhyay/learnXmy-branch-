@@ -22,20 +22,20 @@ export async function uploadFile(req: AuthRequest, res: Response) {
   }
   const meta = await fileService.saveFileRecord(req.authUser.id, kind, rel, file.mimetype, file.size, file.originalname);
   
-  // Handle avatar uploads - store relative URL in user profile
+  // Handle profile image uploads - store relative URL in user profile
   if (kind === 'avatar') {
-    const avatarUrl = `/api/files/avatar/${meta._id}`;
+    const profileImageUrl = `/api/files/profile/${meta._id}`;
     try {
       // Update user's avatar_url in the database
-      await User.findByIdAndUpdate(req.authUser.id, { avatar_url: avatarUrl } as Record<string, unknown>);
+      await User.findByIdAndUpdate(req.authUser.id, { avatar_url: profileImageUrl } as Record<string, unknown>);
       
-      // Log successful avatar update for debugging
-      console.log(`Avatar updated for user ${req.authUser.id}: ${avatarUrl}`);
+      // Log successful profile image update for debugging
+      console.log(`Profile image updated for user ${req.authUser.id}: ${profileImageUrl}`);
       
-      return ok(res, { id: String(meta._id), url: avatarUrl });
+      return ok(res, { id: String(meta._id), url: profileImageUrl });
     } catch (error) {
       // If database update fails, clean up the uploaded file
-      console.error('Failed to update avatar URL:', error);
+      console.error('Failed to update profile image URL:', error);
       await fileService.deleteMeta(String(meta._id), req.authUser.id).catch(() => {});
       throw error;
     }
@@ -96,8 +96,8 @@ export async function getSelfie(req: AuthRequest, res: Response) {
   return getFile(req, res);
 }
 
-export async function getPublicAvatar(req: any, res: Response) {
-  // Public endpoint for avatar images - no authentication required
+export async function getPublicProfileImage(req: any, res: Response) {
+  // Public endpoint for profile images - no authentication required
   return getFile(req, res);
 }
 
