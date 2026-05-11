@@ -11,3 +11,4 @@ Allow: /
 Crawl-delay: 1
 
 Sitemap: https://learnxplatform.qzz.io/sitemap.xml
+Sitemap: https://learnxplatform.qzz.io/sitemap-index.xml
