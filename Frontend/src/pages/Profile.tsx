@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Camera, Save, User, Mail, BookOpen, Loader2, GraduationCap } from "lucide-react";
 import { api, API_BASE, getAccessToken } from "@/lib/backendApi";
+import ProfileImage from "@/components/ui/ProfileImage";
 
 export default function Profile() {
   const { user, profile, roles, refreshProfile } = useAuth();
@@ -12,7 +13,7 @@ export default function Profile() {
   const [fullName, setFullName] = useState("");
   const [className, setClassName] = useState("");
   const [email, setEmail] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -21,11 +22,11 @@ export default function Profile() {
     setFullName(profile.full_name || "");
     setClassName(profile.class_name || "");
     setEmail(profile.email || "");
-    // Prepend API base URL to avatar URL if it's a relative path
-    const fullAvatarUrl = profile.avatar_url ? 
+    // Prepend API base URL to profile image URL if it's a relative path
+    const fullProfileImageUrl = profile.avatar_url ? 
       (profile.avatar_url.startsWith('http') ? profile.avatar_url : `${API_BASE}${profile.avatar_url}`) 
       : null;
-    setAvatarUrl(fullAvatarUrl);
+    setProfileImage(fullProfileImageUrl);
   }, [profile]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,12 +70,12 @@ export default function Profile() {
         throw new Error(result?.message || "Upload failed");
       }
 
-      // Update avatar URL immediately
-      const newAvatarUrl = result.data?.url;
-      const fullAvatarUrl = newAvatarUrl ? 
-        (newAvatarUrl.startsWith('http') ? newAvatarUrl : `${API_BASE}${newAvatarUrl}`) 
+      // Update profile image URL immediately
+      const newProfileImageUrl = result.data?.url;
+      const fullProfileImageUrl = newProfileImageUrl ? 
+        (newProfileImageUrl.startsWith('http') ? newProfileImageUrl : `${API_BASE}${newProfileImageUrl}`) 
         : null;
-      setAvatarUrl(fullAvatarUrl);
+      setProfileImage(fullProfileImageUrl);
       
       toast.success("Profile picture updated!");
       await refreshProfile?.();
@@ -129,19 +130,13 @@ export default function Profile() {
       {/* Avatar Section */}
       <div className="glass-card p-8 flex flex-col items-center gap-5">
         <div className="relative group">
-          <div className="w-28 h-28 rounded-2xl overflow-hidden border-2 border-border/50 bg-muted/30 flex items-center justify-center">
-            {avatarUrl ? (
-              <img 
-                src={avatarUrl} 
-                alt="Profile" 
-                className="w-full h-full object-cover"
-                onError={() => setAvatarUrl(null)}
-              />
-            ) : null}
-            <span className={`text-4xl font-bold text-primary ${avatarUrl ? "hidden" : ""}`}>
-              {initials}
-            </span>
-          </div>
+          <ProfileImage 
+            src={profileImage} 
+            alt="Profile" 
+            name={fullName || user?.email || "User"}
+            size="lg"
+            className="mx-auto"
+          />
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
