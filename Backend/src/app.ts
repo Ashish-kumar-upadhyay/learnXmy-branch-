@@ -96,7 +96,13 @@ app.use(express.json({ limit: '12mb' }));
 app.use(limiter);
 
 app.get('/', (_req, res) => res.send('API is running!'));
-app.get('/health', (_req, res) => res.json({ ok: true }));
+app.get('/health', (_req, res) =>
+  res.json({
+    success: true,
+    message: 'Server is healthy',
+    timestamp: new Date().toISOString(),
+  })
+);
 /** Contact form works without DB (Resend only). */
 app.use('/api/contact', contactRoutes);
 app.use('/api', requireDatabaseReady);
