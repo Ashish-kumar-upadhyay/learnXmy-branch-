@@ -88,6 +88,8 @@ export default function RoleLogin() {
   const [waitingApproval, setWaitingApproval] = useState(false);
   const [highlightInputs, setHighlightInputs] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
 
   const validRole = (role && role in roleConfig ? role : "student") as RoleKey;
   const config = roleConfig[validRole];
@@ -124,6 +126,20 @@ export default function RoleLogin() {
     demoLoginInProgress.current = true;
     setIsSubmitting(true);
     setDemoLoading(true);
+    setShowLoadingOverlay(true);
+    setLoadingProgress(0);
+    
+    // Simulate loading progress
+    const progressInterval = setInterval(() => {
+      setLoadingProgress(prev => {
+        if (prev >= 95) {
+          clearInterval(progressInterval);
+          return 95;
+        }
+        return prev + Math.random() * 15;
+      });
+    }, 200);
+    
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
@@ -151,6 +167,8 @@ export default function RoleLogin() {
 
       // Success - reset rate limit
       recordAttempt(true);
+      clearInterval(progressInterval);
+      setLoadingProgress(100);
       setTokens({ accessToken: json.data.accessToken, refreshToken: json.data.refreshToken });
       await refreshProfile();
 
@@ -160,6 +178,7 @@ export default function RoleLogin() {
       else if (roles.includes("teacher")) navigate("/teacher");
       else navigate("/");
     } catch (e) {
+      clearInterval(progressInterval);
       const msg = e instanceof Error ? e.message : "Demo login failed";
       if (msg.toLowerCase().includes("failed to fetch")) {
         toast.error(`Backend server unreachable. Ensure backend runs on ${API_BASE}`);
@@ -167,8 +186,10 @@ export default function RoleLogin() {
         toast.error(msg);
       }
     } finally {
+      clearInterval(progressInterval);
       demoLoginInProgress.current = false;
       setDemoLoading(false);
+      setShowLoadingOverlay(false);
       setIsSubmitting(false);
     }
   };
@@ -191,7 +212,20 @@ export default function RoleLogin() {
 
     setIsSubmitting(true);
     setLoading(true);
-
+    setShowLoadingOverlay(true);
+    setLoadingProgress(0);
+    
+    // Simulate loading progress
+    const progressInterval = setInterval(() => {
+      setLoadingProgress(prev => {
+        if (prev >= 95) {
+          clearInterval(progressInterval);
+          return 95;
+        }
+        return prev + Math.random() * 15;
+      });
+    }, 200);
+    
     try {
       if (isLogin) {
         const loginBody =
@@ -226,6 +260,8 @@ export default function RoleLogin() {
 
         // Success - reset rate limit
         recordAttempt(true);
+        clearInterval(progressInterval);
+        setLoadingProgress(100);
         setTokens({ accessToken: json.data.accessToken, refreshToken: json.data.refreshToken });
         await refreshProfile();
 
@@ -254,6 +290,8 @@ export default function RoleLogin() {
         const json = await res.json().catch(() => null);
         if (!res.ok || !json?.data) throw new Error(json?.message || "Register failed");
 
+        clearInterval(progressInterval);
+        setLoadingProgress(100);
         setTokens({ accessToken: json.data.accessToken, refreshToken: json.data.refreshToken });
         await refreshProfile();
 
@@ -272,6 +310,7 @@ export default function RoleLogin() {
         else navigate("/");
       }
     } catch (err) {
+      clearInterval(progressInterval);
       const msg = err instanceof Error ? err.message : "Auth failed";
       if (msg.toLowerCase().includes("failed to fetch")) {
         toast.error("Backend server unreachable. Start backend and try again.");
@@ -279,7 +318,9 @@ export default function RoleLogin() {
         toast.error(msg);
       }
     } finally {
+      clearInterval(progressInterval);
       setLoading(false);
+      setShowLoadingOverlay(false);
       setIsSubmitting(false);
     }
   };
@@ -290,6 +331,78 @@ export default function RoleLogin() {
       <div className="fixed top-5 right-5 z-50">
         <ThemeToggle />
       </div>
+
+      {/* Loading Overlay with Percentage */}
+      {showLoadingOverlay && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-md">
+          <div className="relative flex flex-col items-center">
+            {/* Animated spinner with glow */}
+            <div className="relative w-32 h-32 mb-6">
+              {/* Outer spinning ring */}
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: `conic-gradient(from 0deg, transparent, ${config.gradient}, transparent)`,
+                  animation: 'spin 1.5s linear infinite'
+                }}
+              />
+              {/* Inner spinning ring */}
+              <div
+                className="absolute inset-2 rounded-full"
+                style={{
+                  background: `conic-gradient(from 180deg, transparent, ${config.gradient}, transparent)`,
+                  animation: 'spin 2s linear infinite reverse'
+                }}
+              />
+              {/* Center glow */}
+              <div
+                className="absolute inset-4 rounded-full blur-xl"
+                style={{
+                  background: config.gradient,
+                  opacity: 0.5,
+                  animation: 'pulse 2s ease-in-out infinite'
+                }}
+              />
+              {/* Center icon */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                  style={{ background: config.gradient }}
+                >
+                  <RoleIcon className="w-8 h-8 text-white" />
+                </div>
+              </div>
+            </div>
+
+            {/* Percentage display */}
+            <div className="text-center">
+              <div className="text-5xl font-black mb-2" style={{ 
+                background: config.gradient,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>
+                {Math.round(loadingProgress)}%
+              </div>
+              <p className="text-sm text-muted-foreground font-medium animate-pulse">
+                Loading your dashboard...
+              </p>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-64 h-2 mt-6 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300 ease-out"
+                style={{
+                  width: `${loadingProgress}%`,
+                  background: config.gradient,
+                  boxShadow: `0 0 20px ${config.glowColor}`
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== LEFT SIDE - Illustration ===== */}
       <div

@@ -151,7 +151,7 @@ export async function myAnalytics(req: AuthRequest, res: Response) {
               in: {
                 $cond: {
                   if: { $gt: [{ $size: '$$scores' }, 0] },
-                  then: { $divide: [{ $reduce: { input: '$$scores', in: { $add: ['$$value', '$$this.percentage'] }, initial: 0 } }, { $size: '$$scores' }] },
+                  then: { $divide: [{ $sum: '$$scores.percentage' }, { $size: '$$scores' }] },
                   else: 0
                 }
               }
