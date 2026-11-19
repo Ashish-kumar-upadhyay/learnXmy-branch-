@@ -1,87 +1,85 @@
 <div align="center">
 
-# 🎓 LearnX — Smart Learning Management System
+<img src="assets/learnx-hero.gif" width="100%" alt="LearnX animated neon hero banner" />
 
-### One platform. Three roles. A smarter way to learn, teach, and manage.
+<br/>
 
-**An AI-powered Learning Management System built to bring academic operations, student engagement, assessments, and administration into one connected platform.**
+<a href="https://learnxplatform.qzz.io">
+  <img src="https://img.shields.io/badge/ENTER%20LEARNX-Live%20Platform-2563EB?style=for-the-badge&logo=googlechrome&logoColor=white" />
+</a>
+<img src="https://img.shields.io/badge/AI-POWERED-8B5CF6?style=for-the-badge&logo=sparkles&logoColor=white" />
+<img src="https://img.shields.io/badge/3-ROLE%20BASED%20PORTALS-06B6D4?style=for-the-badge" />
 
-[![Live Website](https://img.shields.io/badge/🌐_Live_Website-learnxplatform.qzz.io-2563EB?style=for-the-badge)](https://learnxplatform.qzz.io)
-[![Frontend](https://img.shields.io/badge/Frontend-React_%2B_TypeScript-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
-[![Backend](https://img.shields.io/badge/Backend-Node.js_%2B_Express-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://expressjs.com/)
-[![Database](https://img.shields.io/badge/Database-MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+<br/><br/>
+
+<img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=600&size=18&duration=2300&pause=650&color=60A5FA&center=true&vCenter=true&width=760&lines=One+ecosystem.+Three+powerful+experiences.;AI-assisted+learning+and+academic+operations.;Learn+smarter.+Teach+better.+Manage+everything." alt="Animated tagline" />
+
+**An AI-powered Learning Management System connecting administrators, teachers, and students through one unified academic platform.**
+
+[🌐 Live Platform](https://learnxplatform.qzz.io) · [✨ Features](#-the-learnx-experience) · [⚡ Tech Stack](#-technology-stack) · [🛠️ Setup](#️-run-locally)
 
 </div>
 
 ---
 
-## ✨ About LearnX
+## ✨ The LearnX experience
 
-**LearnX** is a centralized, AI-powered LMS designed for educational institutions. It connects administrators, teachers, and students through dedicated role-based dashboards and tools.
+LearnX brings the everyday operations of an educational institution into one connected experience. Attendance, lectures, assignments, exams, fees, communication, and AI-assisted learning are organized into dedicated role-based workspaces.
 
-Instead of managing attendance, lectures, assignments, exams, fees, communication, and student support across separate systems, LearnX brings these academic workflows together in one platform.
+<div align="center">
 
-The system follows a structured onboarding process: administrators create teacher accounts with unique teacher codes; teachers and administrators can add students; and newly created students receive their login credentials through email.
+| 🛡️ ADMIN | 👨‍🏫 TEACHER | 🎓 STUDENT |
+|:---:|:---:|:---:|
+| **Oversee everything** | **Teach and track** | **Learn and grow** |
+| Institution-wide control | Classroom workflows | Personalized learning |
 
-🔗 **Live platform:** [https://learnxplatform.qzz.io](https://learnxplatform.qzz.io)
+</div>
 
----
-
-## 👥 Three Role-Based Portals
+## 🎭 Three portals. One ecosystem.
 
 <table>
 <tr>
 <td width="33%" valign="top">
 
-### 🛡️ Admin Portal
+<h3>🛡️ Admin Portal</h3>
 
 - Create and manage teacher accounts
-- Create and manage student accounts
 - Generate unique teacher codes
-- Update user names and email details
-- Remove and manage users
-- Monitor total students and teachers
+- Add, update, and remove students
+- Monitor student and teacher totals
 - Oversee classes and assignments
-- Manage fee structures and payments
+- Manage fee information and payments
 - Review and escalate support tickets
-- Monitor daily attendance
-- View institution-wide analytics
+- Monitor attendance and institution analytics
 
 </td>
 <td width="33%" valign="top">
 
-### 👨‍🏫 Teacher Portal
+<h3>👨‍🏫 Teacher Portal</h3>
 
 - Manage classes and students
-- Create assignments and quizzes
-- Create exams and announcements
+- Create assignments, quizzes, and exams
+- Publish announcements
 - Generate learning content with AI
-- Mark daily attendance with location
-- Review student submissions
+- Mark location-based attendance
+- Review submissions and award marks
 - Track student performance
-- Identify students who need support
-- View academic analytics
-- Manage leave requests
-- Respond to support tickets
-- Use AI assistance for teaching topics
+- Manage leave requests and support tickets
 
 </td>
 <td width="33%" valign="top">
 
-### 🎓 Student Portal
+<h3>🎓 Student Portal</h3>
 
 - Personalized academic dashboard
 - Watch lecture videos
-- Submit assignments before deadlines
+- Submit assignments
 - Attend online exams and quizzes
 - View attendance and performance reports
 - Check timetable and announcements
-- Track fees and make payments
-- Apply for leave
-- View leaderboard rankings
-- Raise support tickets
-- Use the AI Tutor
-- Manage profile and preferences
+- Track fees and payment status
+- Apply for leave and raise tickets
+- Use AI Tutor and view leaderboard rankings
 
 </td>
 </tr>
@@ -89,78 +87,92 @@ The system follows a structured onboarding process: administrators create teache
 
 ---
 
-## 🚀 Feature Highlights
+## 🚀 The LearnX experience
 
-### 📊 1. Personalized Student Dashboard
-Students get a consolidated view of their academic activity, including attendance, assignments, exam performance, timetable, fee status, and progress reports.
+<details open>
+<summary><strong>📊 Smart student dashboard</strong></summary>
+A consolidated view of attendance, assignments, exam performance, timetable, fee status, and academic progress.
+</details>
 
-### 🎥 2. Lecture Management
-Teachers can organize learning content, while students can access lecture videos from their portal.
+<details>
+<summary><strong>🎥 Lecture management</strong></summary>
+Teachers organize learning content, while students access lecture videos through their portal.
+</details>
 
-### 📝 3. Assignment Management
-- Teachers create and publish assignments with deadlines.
-- Students submit their work through the platform.
-- Late submissions are marked as overdue according to the assignment deadline rules.
-- Teachers can review submissions and award marks.
+<details>
+<summary><strong>📝 Assignment lifecycle</strong></summary>
 
-### 🧠 4. Online Exams & Anti-Cheating Measures
-- Students can attempt scheduled exams and quizzes.
+- Teachers publish assignments with deadlines.
+- Students submit work through the platform.
+- Late submissions are identified using deadline rules.
+- Teachers review submissions and award marks.
+</details>
+
+<details>
+<summary><strong>🧠 Online exams and integrity measures</strong></summary>
+
+- Students attempt scheduled exams and quizzes.
 - Tab-switch activity is monitored during an exam.
-- A warning is displayed after a detected tab switch.
+- A warning appears after a detected tab switch.
 - Repeated violations can trigger automatic submission.
-- AI-assisted screen monitoring is included as an additional measure to help identify suspicious activity.
+- AI-assisted screen monitoring provides an additional signal to help identify suspicious activity.
 
-> Monitoring signals are intended to support exam integrity; they should not be treated as infallible proof of misconduct.
+> Monitoring signals support exam integrity; they should not be treated as infallible proof of misconduct.
+</details>
 
-### 📍 5. Location & Selfie-Based Attendance
+<details>
+<summary><strong>📍 Location and selfie-based attendance</strong></summary>
+
 - Attendance workflows support location capture and selfie/photo verification.
-- Student attendance can distinguish full-day, half-day, and lecture-level attendance.
+- Student records can distinguish full-day, half-day, and lecture-level attendance.
 - Teachers also have a location-based daily attendance workflow.
 - Attendance records feed into dashboards and reports.
+</details>
 
-### 🤖 6. AI Tutor & Teacher AI Assistant
-- Students can ask academic questions and receive AI-generated explanations.
-- Students can attach an image when describing a doubt or problem.
-- Teachers can use AI assistance for topic-related questions.
+<details>
+<summary><strong>🤖 AI Tutor and teacher AI assistant</strong></summary>
+
+- Students ask academic questions and receive AI-generated explanations.
+- Students can attach an image to explain a doubt or problem.
+- Teachers can ask topic-related questions.
 - Teachers can generate draft quizzes, exams, and assignments by entering a topic.
-- AI-generated content can be reviewed before it is used.
+- AI-generated content can be reviewed before use.
+</details>
 
-### 🎫 7. Support Ticket & Escalation System
-- Students can raise tickets when they face an issue.
-- Teachers can review and resolve student tickets.
-- If a ticket remains unresolved for 24 hours, it is escalated to the Admin for visibility and follow-up.
+<details>
+<summary><strong>🎫 Support tickets and escalation</strong></summary>
+Students can raise support tickets, and teachers can review and resolve them. Tickets that remain unresolved for **24 hours** are escalated to the Admin for visibility and follow-up.
+</details>
 
-### 🔔 8. Notifications & Announcements
-- Notifications keep users informed about new academic activities and updates.
-- Sound alerts help draw attention to new notifications.
-- Teachers can publish announcements for students.
+<details>
+<summary><strong>🔔 Notifications and announcements</strong></summary>
+Notifications and sound alerts help users stay informed about academic activities and platform updates. Teachers can publish announcements for students.
+</details>
 
-### 📅 9. Timetable, Leave & Sprint Plans
-- Students can view their timetable.
-- Students and teachers can submit leave requests.
-- Sprint plans help organize learning or work into focused seven-day plans.
+<details>
+<summary><strong>📅 Timetable, leave, and sprint plans</strong></summary>
+Students can view their timetable, students and teachers can submit leave requests, and seven-day sprint plans help organize focused learning or work.
+</details>
 
-### 🏆 10. Leaderboard & Academic Analytics
-- Students can view leaderboard rankings.
-- Teachers can review student and subject-level performance.
-- Analytics help identify students who may be struggling in a subject.
-- Admins can monitor institution-wide activity and attendance trends.
+<details>
+<summary><strong>🏆 Leaderboard and academic analytics</strong></summary>
+Students can view leaderboard rankings. Teachers can review student and subject-level performance, while admins can monitor institution-wide activity and attendance trends.
+</details>
 
-### 💳 11. Fee Management
-- Students can view their fee details and payment status.
-- Students can make payments through the available payment workflow.
-- Admins can manage fee information and monitor payments.
-
-### 🔎 12. Search, Profiles & Themes
-- Search functionality helps users find relevant platform information.
-- Users can update permitted profile details.
-- Light and dark themes provide a more comfortable interface.
+<details>
+<summary><strong>💳 Fees, profiles, search, and themes</strong></summary>
+Students can view fee details and payment status and use the available payment workflow. Search helps users find relevant platform information. Users can update permitted profile details and choose light or dark themes.
+</details>
 
 ---
 
-## 🧰 Technology Stack
+## ⚡ Technology stack
 
-> **Repository implementation note:** The supplied project archive contains a React + Vite frontend and a separate Express + TypeScript backend. The backend uses MongoDB through Mongoose. This README reflects the code structure in that archive.
+<div align="center">
+
+<img src="https://skillicons.dev/icons?i=react,ts,vite,tailwind,nodejs,express,mongodb" alt="Core technology icons" />
+
+</div>
 
 | Layer | Technologies |
 |---|---|
@@ -182,65 +194,45 @@ Teachers can organize learning content, while students can access lecture videos
 
 ---
 
-## 🏗️ High-Level Architecture
+## 🏗️ Architecture at a glance
 
-```text
-                    ┌─────────────────────────┐
-                    │       End User          │
-                    │ Admin / Teacher / Student│
-                    └────────────┬────────────┘
-                                 │
-                                 ▼
-                    ┌─────────────────────────┐
-                    │     Cloudflare DNS      │
-                    │   Domain / Edge Layer   │
-                    └────────────┬────────────┘
-                                 │
-                                 ▼
-                    ┌─────────────────────────┐
-                    │    Vercel Deployment    │
-                    │   Frontend Application  │
-                    └────────────┬────────────┘
-                                 │ HTTPS API
-                                 ▼
-                    ┌─────────────────────────┐
-                    │   Express API Server    │
-                    │ Controllers / Routes    │
-                    │ Middleware / Validation│
-                    └────────────┬────────────┘
-                                 │
-                  ┌──────────────┼──────────────┐
-                  ▼              ▼              ▼
-           ┌────────────┐ ┌────────────┐ ┌────────────┐
-           │  MongoDB   │ │ AI Service │ │ Email /    │
-           │ + Mongoose │ │ Integration│ │ Socket.IO  │
-           └────────────┘ └────────────┘ └────────────┘
+```mermaid
+flowchart TD
+    U["👥 Admin · Teacher · Student"] --> CF["Cloudflare · DNS / Edge"]
+    CF --> FE["Vercel · React + Vite"]
+    FE -->|"HTTPS API"| API["Node.js + Express API"]
+    API --> DB[("MongoDB + Mongoose")]
+    API --> AI["AI Service"]
+    API --> RT["Socket.IO + Nodemailer"]
+
+    style U fill:#172554,stroke:#60A5FA,color:#fff
+    style CF fill:#312E81,stroke:#818CF8,color:#fff
+    style FE fill:#1E3A8A,stroke:#60A5FA,color:#fff
+    style API fill:#164E63,stroke:#22D3EE,color:#fff
+    style DB fill:#14532D,stroke:#4ADE80,color:#fff
+    style AI fill:#581C87,stroke:#C084FC,color:#fff
+    style RT fill:#713F12,stroke:#FBBF24,color:#fff
 ```
 
-*Deployment note: Cloudflare manages the domain/DNS layer and Vercel serves the deployed frontend. The API server and database must be deployed/configured separately according to the production environment.*
+**Deployment note:** Cloudflare manages the domain/DNS layer and Vercel serves the deployed frontend. The API server and database are deployed/configured separately for the production environment.
 
----
+## 🔐 Authentication and access control
 
-## 🔐 Authentication & Access Control
-
-LearnX uses role-based access so users can access only the features permitted for their role.
+LearnX uses role-based access so each user can access only the features permitted for their role.
 
 1. An administrator creates a teacher account and assigns a unique teacher code.
 2. The teacher signs in using the assigned credentials.
 3. An administrator or teacher creates a student account.
 4. The student receives login details through the configured email service.
-5. Authenticated requests are verified by backend middleware.
-6. Role-based middleware checks whether the user is allowed to access a protected resource.
+5. Backend middleware verifies authenticated requests.
+6. Role-based middleware checks access to protected resources.
 
 The backend includes JWT utilities, password hashing, authentication middleware, role middleware, and request validation.
 
----
-
-## 🗂️ Project Structure
+## 🗂️ Project structure
 
 ```text
 LearnX/
-│
 ├── frontend/
 │   ├── public/
 │   ├── src/
@@ -270,32 +262,7 @@ LearnX/
 └── README.md
 ```
 
----
-
-## 🧩 Backend Modules
-
-The backend is organized into separate models, controllers, and routes to keep responsibilities modular.
-
-| Module | Responsibility |
-|---|---|
-| Authentication & Users | Login, user creation, profiles, roles |
-| Classes & Timetable | Class organization and schedules |
-| Lectures | Lecture content management |
-| Assignments | Assignment creation and submissions |
-| Exams | Exam creation, questions, attempts, results |
-| Attendance | Student and teacher attendance |
-| Analytics | Academic and attendance reporting |
-| AI | AI Tutor and AI-assisted learning workflows |
-| Notifications | User notifications and updates |
-| Support Tickets | Issue tracking and escalation |
-| Fees & Payments | Fee records and payment tracking |
-| Sprint Plans | Seven-day plans and tasks |
-| Announcements | Teacher-to-student communication |
-| Files | Upload and file metadata handling |
-
----
-
-## ⚙️ Run Locally
+## 🛠️ Run locally
 
 ### Prerequisites
 
@@ -319,7 +286,7 @@ npm install
 npm run dev
 ```
 
-Vite will display the local development URL in the terminal (commonly `http://localhost:5173`).
+Vite displays the local development URL in the terminal (commonly `http://localhost:5173`).
 
 ### 3. Configure and start the backend
 
@@ -330,9 +297,7 @@ cd learnx-backend
 npm install
 ```
 
-Create a `.env` file in `learnx-backend/` and add the environment variables required by your backend configuration.
-
-Example configuration (use the exact variable names expected by `src/config/environment.ts`):
+Create a `.env` file inside `learnx-backend/` and add the variables required by your backend configuration.
 
 ```env
 NODE_ENV=development
@@ -341,7 +306,7 @@ MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_long_random_secret
 ```
 
-Add any additional credentials required by the enabled integrations, such as email, AI, OAuth, or file-storage services. Do not commit real secrets.
+Add any additional credentials required by enabled integrations, such as email, AI, OAuth, or file-storage services. **Never commit real secrets.**
 
 Start the backend:
 
@@ -366,41 +331,22 @@ npm run build
 npm start
 ```
 
----
+## 🌍 Deployment and SEO
 
-## 🌍 Deployment
+The live platform is available at **[learnxplatform.qzz.io](https://learnxplatform.qzz.io)**.
 
-The live platform is available at:
+| Service | Purpose |
+|---|---|
+| Vercel | Frontend hosting and deployment workflow |
+| Cloudflare | Domain DNS management and available edge/security services |
+| MongoDB | Application data storage through the backend |
+| Environment variables | Production secrets and service credentials |
 
-**[learnxplatform.qzz.io](https://learnxplatform.qzz.io)**
-
-The deployment setup described for LearnX:
-
-- **Vercel:** frontend hosting and deployment workflow.
-- **Cloudflare:** domain DNS management and available edge/security services.
-- **MongoDB:** application data storage through the backend.
-- **Environment variables:** production secrets and service credentials are configured outside source code.
-
----
-
-## 🔍 SEO & Discoverability
-
-LearnX has been made publicly accessible and its pages/domain have been submitted for search-engine discovery.
-
-SEO-related work includes:
-
-- Page titles and meta descriptions
-- Search-engine-friendly page content
-- Sitemap and robots configuration
-- Semantic HTML and heading structure
-- Google Search Console monitoring
-- Indexing and search visibility checks
+SEO-related work includes page titles and meta descriptions, search-friendly page content, sitemap and robots configuration, semantic HTML, heading structure, and Google Search Console monitoring.
 
 > Search indexing and ranking are controlled by search engines and can change over time.
 
----
-
-## 🔒 Security Practices
+## 🛡️ Security practices
 
 The backend includes or is structured to support:
 
@@ -412,38 +358,30 @@ The backend includes or is structured to support:
 - Security headers through Helmet
 - Rate limiting
 - Environment-based secret management
-- Controlled file upload handling
+- Controlled file-upload handling
 
-Always use HTTPS in production, keep dependencies updated, validate uploaded files, and avoid exposing private credentials in frontend code or Git history.
+For production, use HTTPS, keep dependencies updated, validate uploaded files, and never expose private credentials in frontend code or Git history.
 
----
-
-## 🛣️ Potential Future Improvements
+## 🧭 Potential future improvements
 
 - More granular permission management
 - Expanded automated test coverage
 - Advanced audit logs for administrative actions
 - Deeper learning recommendations based on student progress
-- More detailed accessibility improvements
+- Further accessibility improvements
 - Additional reporting and export options
 - Performance monitoring and load testing
 
 ---
 
-## 👨‍💻 Project
-
-**LearnX — AI-Powered Learning Management System**
-
-🌐 Live: [learnxplatform.qzz.io](https://learnxplatform.qzz.io)
-
-Built to simplify academic management and create a more connected learning experience for administrators, teachers, and students.
-
----
-
 <div align="center">
 
-### ⭐ If you find this project interesting, consider giving the repository a star!
+<img src="assets/learnx-hero.gif" width="100%" alt="LearnX animated closing banner" />
 
-**LearnX — Learn smarter. Teach better. Manage everything in one place.**
+### **Learn smarter. Teach better. Manage everything in one place.**
+
+<a href="https://learnxplatform.qzz.io">
+  <img src="https://img.shields.io/badge/EXPLORE%20LEARNX-OPEN%20LIVE%20PLATFORM-2563EB?style=for-the-badge&logo=googlechrome&logoColor=white" />
+</a>
 
 </div>
